@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func UseShortener(w http.ResponseWriter, r *http.Request) {
+func ShortenURL(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
 		http.Error(w, "for use the shortener, you need to send a POST req", http.StatusBadRequest)
@@ -43,7 +43,7 @@ func UseShortener(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func UseShortUrlRedirect(w http.ResponseWriter, r *http.Request) {
+func ProcessingShortUrl(w http.ResponseWriter, r *http.Request) {
 	uid := mux.Vars(r)["uid"]
 
 	if uid == "" {
@@ -72,7 +72,7 @@ func GetStatistic(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(stat))
 }
 
-func ShortenerWithoutMux(w http.ResponseWriter, r *http.Request) {
+func ShortenURLWithoutMux(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		urlSplit := strings.Split(r.URL.Path[1:], "/")
 		switch {
