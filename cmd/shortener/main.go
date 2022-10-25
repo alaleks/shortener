@@ -12,15 +12,15 @@ import (
 func main() {
 
 	mux := mux.NewRouter()
-	mux.HandleFunc("/", handlers.UseShortener).Methods("POST")
-	mux.HandleFunc("/{uid}", handlers.UseShortUrlRedirect).Methods("GET")
+	mux.HandleFunc("/", handlers.ShortenURL).Methods("POST")
+	mux.HandleFunc("/{uid}", handlers.ProcessingShortUrl).Methods("GET")
 	mux.HandleFunc("/{uid}/statistic", handlers.GetStatistic).Methods("GET")
 	log.Fatal(http.ListenAndServe(app.GetPort(), mux))
 
 	// solutions without gorilla mux
 	// without optimization
 	/*
-		http.HandleFunc("/", handlers.ShortenerWithoutMux)
+		http.HandleFunc("/", handlers.ShortenURLWithoutMux)
 
 		server := &http.Server{
 			Addr: app.GetPort(),
