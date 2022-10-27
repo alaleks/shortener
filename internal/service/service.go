@@ -30,9 +30,9 @@ func randb(buf []byte) {
 
 func IsUrl(uri string) error {
 	switch {
-	case strings.HasPrefix(uri, "https://"),
-		strings.HasPrefix(uri, "http://"),
-		strings.HasPrefix(uri, "www."):
+	case strings.HasPrefix(uri, "https://") && strings.TrimPrefix(uri, "https://") != "",
+		strings.HasPrefix(uri, "http://") && strings.TrimPrefix(uri, "http://") != "",
+		strings.HasPrefix(uri, "www.") && strings.TrimPrefix(uri, "https://") != "":
 		return nil
 	default:
 		return fmt.Errorf("invalid url: %s", uri)
