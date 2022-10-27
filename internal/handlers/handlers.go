@@ -13,11 +13,6 @@ import (
 
 func UseShortner(w http.ResponseWriter, r *http.Request) {
 
-	if r.Method != http.MethodPost {
-		http.Error(w, "for use the shortener, you need to send a POST req", http.StatusBadRequest)
-		return
-	}
-
 	body, err := io.ReadAll(r.Body)
 
 	if err != nil {
