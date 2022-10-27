@@ -7,5 +7,10 @@ import (
 )
 
 func main() {
-	log.Fatal(app.Run())
+	srv, err := app.NewServer("8080")
+	if err == nil {
+		log.Fatal(app.Run(srv))
+	} else {
+		log.Fatal(err)
+	}
 }
