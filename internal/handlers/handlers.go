@@ -32,7 +32,9 @@ func UseShortner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if service.IsUrl(urlForShortener) == nil {
+	err = service.IsUrl(urlForShortener)
+
+	if err == nil {
 		w.WriteHeader(http.StatusCreated)
 		host := "http://" + r.Host + "/"
 
