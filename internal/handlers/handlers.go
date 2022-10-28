@@ -11,7 +11,16 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func UseShortner(w http.ResponseWriter, r *http.Request) {
+var dataStorage storage.Storager
+
+func init() {
+	dataStorage = &storage.Urls{
+		LongUrls:  make(map[string]*storage.ShortUrl),
+		ShortUrls: make(map[string]string),
+	}
+}
+
+func ShortenURL(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 
@@ -20,14 +29,14 @@ func UseShortner(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	urlForShortener := strings.TrimSpace(string(body))
+	uri := strings.TrimSpace(string(body))
 
-	if urlForShortener == "" {
+	if uri == "" {
 		http.Error(w, "url is empty", http.StatusBadRequest)
 		return
 	}
 
-	err = service.IsUrl(urlForShortener)
+	err = service.IsUrl(uri)
 
 	if err == nil {
 		w.WriteHeader(http.StatusCreated)
@@ -37,12 +46,12 @@ func UseShortner(w http.ResponseWriter, r *http.Request) {
 			host = "https://" + r.Host + "/"
 		}
 
-		if uid, ok := storage.UrlsStorage.FindUidShortUrl(storage.LongURL(urlForShortener)); ok {
+		if uid, ok := dataStorage.Get(uri); ok {
 			w.Write([]byte(host + string(uid)))
 			return
 		}
-		newUid := service.CreateShortId(5)
-		storage.UrlsStorage.Add(storage.LongURL(urlForShortener), storage.Uid(newUid))
+		newUid := service.GenUid(5)
+		dataStorage.Add(uri, newUid)
 		w.Write([]byte(host + newUid))
 		return
 	}
@@ -51,7 +60,7 @@ func UseShortner(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func ParseShortUrl(w http.ResponseWriter, r *http.Request) {
+func ParseShortURL(w http.ResponseWriter, r *http.Request) {
 	uid := mux.Vars(r)["uid"]
 
 	if uid == "" {
@@ -59,19 +68,20 @@ func ParseShortUrl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	longUrl, ok := storage.UrlsStorage.FindLongUrl(storage.Uid(uid))
+	uri, ok := dataStorage.Get(uid)
 	if !ok {
 		http.Error(w, "this short url is invalid", http.StatusBadRequest)
 		return
 	}
-	w.Header().Set("Location", string(longUrl))
+	dataStorage.Update(uid)
+	w.Header().Set("Location", uri)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
-func GiveAwayStatistic(w http.ResponseWriter, r *http.Request) {
+func GetStat(w http.ResponseWriter, r *http.Request) {
 	uid := mux.Vars(r)["uid"]
-	uri, stat := storage.UrlsStorage.GetStatistic(storage.Uid(uid))
-	if uri == "" {
+	uri, ok := dataStorage.Get(uid)
+	if !ok {
 		http.Error(w, "this short url is invalid", http.StatusBadRequest)
 		return
 	}
@@ -81,5 +91,7 @@ func GiveAwayStatistic(w http.ResponseWriter, r *http.Request) {
 		host = "https://" + r.Host + "/"
 	}
 
-	w.Write([]byte(fmt.Sprintf("short link: %s%s \nurl: %s \nusage: "+"%d", host, uid, uri, stat)))
+	id, counterStat, created := dataStorage.Stat(uri)
+
+	w.Write([]byte(fmt.Sprintf("short link: %s%s \nurl: %s \nusage: %d \ncreated: %s", host, id, uri, counterStat, created)))
 }

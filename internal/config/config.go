@@ -1,18 +1,41 @@
 package config
 
 import (
+	"net"
 	"strings"
 )
 
-type AppPort string
+type Configer interface {
+	SelectPort(port string) error
+	Port() string
+}
 
-func SelectAppPort(port string) *AppPort {
+type AppConfig struct {
+	port string
+}
+
+func (a *AppConfig) SelectPort(port string) error {
 	if !strings.HasPrefix(port, ":") {
 		port = ":" + port
 	}
-	return (*AppPort)(&port)
+	ln, err := net.Listen("tcp", port)
+
+	if ln != nil {
+		defer ln.Close()
+	}
+
+	if err == nil {
+		a.port = port
+	}
+
+	return err
+
 }
 
-func (a *AppPort) Get() string {
-	return string(*a)
+func (a *AppConfig) Port() string {
+	return a.port
+}
+
+func New() Configer {
+	return &AppConfig{}
 }

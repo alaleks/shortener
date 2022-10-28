@@ -1,63 +1,74 @@
 package storage
 
-import "strings"
+import (
+	"strings"
+	"sync"
+	"time"
 
-type LongURL string
-type Uid string
-type ShortURL struct {
-	uri       LongURL
+	"github.com/alaleks/shortener/internal/service"
+)
+
+type Storager interface {
+	Add(uri string, uid string)
+	Get(key string) (string, bool)
+	Stat(key string) (string, uint, string)
+	Update(key string)
+}
+
+type ShortUrl struct {
+	uid       string
+	created   time.Time
 	statistic uint
 }
 
 type Urls struct {
-	LongUrls  map[LongURL]Uid
-	ShortUrls map[Uid]*ShortURL
+	LongUrls  map[string]*ShortUrl // where key long url
+	ShortUrls map[string]string    // where key is an uid, value is a url before used shortener
 }
 
-var UrlsStorage *Urls
-
-func init() {
-	UrlsStorage = &Urls{
-		LongUrls:  make(map[LongURL]Uid),
-		ShortUrls: make(map[Uid]*ShortURL),
+func (u *Urls) Add(uri string, uid string) {
+	if !strings.HasPrefix(uri, "http") {
+		uri = "http://" + uri
 	}
+
+	u.ShortUrls[uid] = uri
+	u.LongUrls[service.RemovePrefix(uri, "https://", "http://", "www.")] = &ShortUrl{uid, time.Now(), 0}
 }
 
-func (u *Urls) Add(long LongURL, id Uid) {
-	if !strings.HasPrefix(string(long), "http") {
-		long = "http://" + long
-	}
-	u.ShortUrls[id] = &ShortURL{long, 0}
-	switch {
-	case strings.HasPrefix(string(long), "https://"):
-		long = LongURL(strings.TrimPrefix(string(long), "https://"))
-	case strings.HasPrefix(string(long), "http://"):
-		long = LongURL(strings.TrimPrefix(string(long), "http://"))
-	case strings.HasPrefix(string(long), "www."):
-		long = LongURL(strings.TrimPrefix(string(long), "www."))
-	}
-	u.LongUrls[long] = id
-}
+func (u *Urls) Get(key string) (string, bool) {
+	longUrl, ok := u.ShortUrls[key]
 
-func (u *Urls) FindUidShortUrl(long LongURL) (Uid, bool) {
-	v, ok := u.LongUrls[long]
-	return v, ok
-}
-
-func (u *Urls) FindLongUrl(id Uid) (LongURL, bool) {
-	v, ok := u.ShortUrls[id]
-	if !ok {
-		return "", ok
-	}
-	v.statistic++
-	u.ShortUrls[id] = v
-	return v.uri, ok
-}
-
-func (u *Urls) GetStatistic(id Uid) (string, uint) {
-	v, ok := u.ShortUrls[id]
 	if ok {
-		return string(v.uri), v.statistic
+		return longUrl, ok
 	}
-	return "", 0
+
+	cleanUrl := service.RemovePrefix(key, "https://", "http://", "www.")
+	shortUrl, ok := u.LongUrls[cleanUrl]
+
+	if ok {
+		return shortUrl.uid, ok
+	}
+
+	return "", false
+}
+
+func (u *Urls) Update(key string) {
+	var mtx sync.Mutex
+	shortUrl := u.LongUrls[service.RemovePrefix(u.ShortUrls[key], "https://", "http://", "www.")]
+
+	mtx.Lock()
+	defer mtx.Unlock()
+
+	shortUrl.statistic++
+	u.LongUrls[key] = shortUrl
+
+}
+
+func (u *Urls) Stat(key string) (string, uint, string) {
+	cleanUrl := service.RemovePrefix(key, "https://", "http://", "www.")
+	shortUrl, ok := u.LongUrls[cleanUrl]
+	if !ok {
+		return "", 0, ""
+	}
+	return shortUrl.uid, shortUrl.statistic, shortUrl.created.Format("02.01.2006 15:04:05")
 }

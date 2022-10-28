@@ -1,7 +1,6 @@
 package app
 
 import (
-	"net"
 	"net/http"
 
 	"github.com/alaleks/shortener/internal/config"
@@ -9,19 +8,17 @@ import (
 )
 
 func NewServer(appPort string) (*http.Server, error) {
-	port := config.SelectAppPort(appPort)
+	var conf = config.New()
 
-	ln, err := net.Listen("tcp", port.Get())
+	err := conf.SelectPort("8080")
 
 	if err != nil {
 		return nil, err
 	}
 
-	defer ln.Close()
-
 	server := &http.Server{
 		Handler: router.Create(),
-		Addr:    port.Get(),
+		Addr:    conf.Port(),
 	}
 
 	return server, err

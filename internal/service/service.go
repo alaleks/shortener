@@ -7,10 +7,10 @@ import (
 )
 
 // generate uid string (letters English Alphabet)
-func CreateShortId(size uint) string {
+func GenUid(size uint) string {
 	abc := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0")
 	b := make([]byte, 5)
-	randb(b)
+	randomizer(b)
 	charCnt := byte(len(abc))
 	for i := range b {
 		b[i] = abc[b[i]%charCnt]
@@ -18,7 +18,7 @@ func CreateShortId(size uint) string {
 	return string(b)
 }
 
-func randb(buf []byte) {
+func randomizer(buf []byte) {
 	var n int
 	var err error
 	for n < len(buf) && err == nil {
@@ -37,4 +37,11 @@ func IsUrl(uri string) error {
 	default:
 		return fmt.Errorf("invalid url: %s", uri)
 	}
+}
+
+func RemovePrefix(str string, prefixs ...string) string {
+	for _, prefix := range prefixs {
+		str = strings.TrimPrefix(str, prefix)
+	}
+	return str
 }
