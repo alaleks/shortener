@@ -10,9 +10,10 @@ import (
 
 type Storager interface {
 	Add(uri string, uid string)
-	Get(key string) (string, bool)
-	Stat(key string) (string, uint, string)
-	Update(key string)
+	GetURL(uid string) (string, bool)
+	GetUid(uri string) (string, bool)
+	Stat(uri string) (string, uint, string)
+	Update(uri string)
 }
 
 type ShortUrl struct {
@@ -35,37 +36,34 @@ func (u *Urls) Add(uri string, uid string) {
 	u.LongUrls[service.RemovePrefix(uri, "https://", "http://", "www.")] = &ShortUrl{uid, time.Now(), 0}
 }
 
-func (u *Urls) Get(key string) (string, bool) {
-	longUrl, ok := u.ShortUrls[key]
+func (u *Urls) GetURL(uid string) (string, bool) {
+	longUrl, ok := u.ShortUrls[uid]
+	return longUrl, ok
+}
 
-	if ok {
-		return longUrl, ok
-	}
-
-	cleanUrl := service.RemovePrefix(key, "https://", "http://", "www.")
+func (u *Urls) GetUid(uri string) (string, bool) {
+	cleanUrl := service.RemovePrefix(uri, "https://", "http://", "www.")
 	shortUrl, ok := u.LongUrls[cleanUrl]
-
 	if ok {
 		return shortUrl.uid, ok
 	}
-
-	return "", false
+	return "", ok
 }
 
-func (u *Urls) Update(key string) {
+func (u *Urls) Update(uri string) {
 	var mtx sync.Mutex
-	shortUrl := u.LongUrls[service.RemovePrefix(u.ShortUrls[key], "https://", "http://", "www.")]
+	shortUrl := u.LongUrls[service.RemovePrefix(u.ShortUrls[uri], "https://", "http://", "www.")]
 
 	mtx.Lock()
 	defer mtx.Unlock()
 
 	shortUrl.statistic++
-	u.LongUrls[key] = shortUrl
+	u.LongUrls[uri] = shortUrl
 
 }
 
-func (u *Urls) Stat(key string) (string, uint, string) {
-	cleanUrl := service.RemovePrefix(key, "https://", "http://", "www.")
+func (u *Urls) Stat(uri string) (string, uint, string) {
+	cleanUrl := service.RemovePrefix(uri, "https://", "http://", "www.")
 	shortUrl, ok := u.LongUrls[cleanUrl]
 	if !ok {
 		return "", 0, ""

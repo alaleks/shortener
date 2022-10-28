@@ -17,7 +17,7 @@ func init() {
 	handler = router.Create()
 }
 
-func TestUseShortner(t *testing.T) {
+func TestShortenURL(t *testing.T) {
 
 	tests := []struct {
 		name     string
@@ -98,8 +98,7 @@ func TestUseShortner(t *testing.T) {
 	}
 }
 
-func TestParseShortUrl(t *testing.T) {
-
+func TestParseShortURL(t *testing.T) {
 	shortUrl := func() string {
 		request := httptest.NewRequest(http.MethodPost, "http://localhost:8080/", bytes.NewBuffer([]byte("https://github.com/alaleks/shortener")))
 		responseRecorder := httptest.NewRecorder()
@@ -156,6 +155,51 @@ func TestParseShortUrl(t *testing.T) {
 			if v.body != strings.TrimSpace(string(respBody)) {
 				t.Errorf("body must be %s but is %s", v.body, strings.TrimSpace(string(respBody)))
 			}
+		})
+	}
+}
+
+func TestGetStat(t *testing.T) {
+	shortUrl := func() string {
+		request := httptest.NewRequest(http.MethodPost, "http://localhost:8080/", bytes.NewBuffer([]byte("https://github.com/alaleks/shortener")))
+		responseRecorder := httptest.NewRecorder()
+		handler.ServeHTTP(responseRecorder, request)
+		res := responseRecorder.Result()
+		defer res.Body.Close()
+		resBody, _ := io.ReadAll(res.Body)
+		return string(resBody)
+	}()
+
+	tests := []struct {
+		name string
+		code int
+		uri  string
+	}{
+		{
+			name: "Тест с корректным uid",
+			code: 200,
+			uri:  shortUrl + "/statistic",
+		},
+		{
+			name: "Тест с некорректным uid",
+			code: 400,
+			uri:  shortUrl + "1/statistic",
+		},
+	}
+
+	for _, v := range tests {
+		t.Run(v.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, v.uri, nil)
+			resRec := httptest.NewRecorder()
+			handler.ServeHTTP(resRec, req)
+			res := resRec.Result()
+			if res != nil {
+				defer res.Body.Close()
+			}
+			if v.code != res.StatusCode {
+				t.Errorf("status code must be %d but is %d", v.code, res.StatusCode)
+			}
+
 		})
 	}
 }

@@ -46,7 +46,7 @@ func ShortenURL(w http.ResponseWriter, r *http.Request) {
 			host = "https://" + r.Host + "/"
 		}
 
-		if uid, ok := dataStorage.Get(uri); ok {
+		if uid, ok := dataStorage.GetUid(uri); ok {
 			w.Write([]byte(host + string(uid)))
 			return
 		}
@@ -68,7 +68,7 @@ func ParseShortURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uri, ok := dataStorage.Get(uid)
+	uri, ok := dataStorage.GetURL(uid)
 	if !ok {
 		http.Error(w, "this short url is invalid", http.StatusBadRequest)
 		return
@@ -80,7 +80,7 @@ func ParseShortURL(w http.ResponseWriter, r *http.Request) {
 
 func GetStat(w http.ResponseWriter, r *http.Request) {
 	uid := mux.Vars(r)["uid"]
-	uri, ok := dataStorage.Get(uid)
+	uri, ok := dataStorage.GetURL(uid)
 	if !ok {
 		http.Error(w, "this short url is invalid", http.StatusBadRequest)
 		return
