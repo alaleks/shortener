@@ -12,7 +12,7 @@ var DataStorage Storager
 
 func init() {
 	DataStorage = &Urls{
-		data: make(map[string]*fields),
+		data: make(map[string]*urlEl),
 		mtx:  &sync.Mutex{},
 	}
 }
@@ -24,14 +24,14 @@ type Storager interface {
 	Update(uid string) bool
 }
 
-type fields struct {
+type urlEl struct {
 	longUrl   string
 	created   time.Time
 	statistic uint // short URL usage statistics (actually this is the number of redirects)
 }
 
 type Urls struct {
-	data map[string]*fields // where key uid short url
+	data map[string]*urlEl // where key uid short url
 	mtx  *sync.Mutex
 }
 
@@ -41,7 +41,7 @@ func (u *Urls) Add(longUrl string) (uid string) {
 	}
 
 	uid = service.GenUid(5)
-	u.data[uid] = &fields{longUrl, time.Now(), 0}
+	u.data[uid] = &urlEl{longUrl, time.Now(), 0}
 
 	return uid
 }

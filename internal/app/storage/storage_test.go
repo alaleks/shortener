@@ -7,7 +7,7 @@ import (
 )
 
 var urls = Urls{
-	data: make(map[string]*fields),
+	data: make(map[string]*urlEl),
 	mtx:  &sync.Mutex{},
 }
 var uri = "https://github.com/alaleks/shortener"
@@ -18,12 +18,12 @@ func TestAddGetUpdate(t *testing.T) {
 	uid2 := urls.Add(uriWWWW)
 	tests := []struct {
 		uid string
-		fields
+		urlEl
 	}{
 		{
-			uid1, fields{uri, time.Now(), 0},
+			uid1, urlEl{uri, time.Now(), 0},
 		}, {
-			uid2, fields{"http://" + uriWWWW, time.Now(), 0},
+			uid2, urlEl{"http://" + uriWWWW, time.Now(), 0},
 		},
 	}
 	for i, v := range tests {
