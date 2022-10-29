@@ -81,5 +81,9 @@ func GetStat(w http.ResponseWriter, r *http.Request) {
 
 	longUrl, counterStat, created := storage.DataStorage.Stat(uid)
 
+	if longUrl == "" {
+		http.Error(w, "uid is invalid", http.StatusBadRequest)
+	}
+
 	w.Write([]byte(fmt.Sprintf("short link: %s%s \nurl: %s \nusage: %d \ncreated: %s", host, uid, longUrl, counterStat, created)))
 }

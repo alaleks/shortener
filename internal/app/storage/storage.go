@@ -8,6 +8,15 @@ import (
 	"github.com/alaleks/shortener/internal/app/service"
 )
 
+var DataStorage Storager
+
+func init() {
+	DataStorage = &Urls{
+		data: make(map[string]*fields),
+		mtx:  &sync.Mutex{},
+	}
+}
+
 type Storager interface {
 	Add(longUrl string) (uid string)
 	GetURL(uid string) (string, bool)
@@ -15,14 +24,14 @@ type Storager interface {
 	Update(uid string) bool
 }
 
-type uri struct {
+type fields struct {
 	longUrl   string
 	created   time.Time
 	statistic uint // short URL usage statistics (actually this is the number of redirects)
 }
 
 type Urls struct {
-	data map[string]*uri // where key uid short url
+	data map[string]*fields // where key uid short url
 	mtx  *sync.Mutex
 }
 
@@ -32,7 +41,7 @@ func (u *Urls) Add(longUrl string) (uid string) {
 	}
 
 	uid = service.GenUid(5)
-	u.data[uid] = &uri{longUrl, time.Now(), 0}
+	u.data[uid] = &fields{longUrl, time.Now(), 0}
 
 	return uid
 }
@@ -62,13 +71,4 @@ func (u *Urls) Stat(uid string) (string, uint, string) {
 		return "", 0, ""
 	}
 	return uri.longUrl, uri.statistic, uri.created.Format("02.01.2006 15:04:05")
-}
-
-var DataStorage Storager
-
-func init() {
-	DataStorage = &Urls{
-		data: make(map[string]*uri),
-		mtx:  &sync.Mutex{},
-	}
 }
