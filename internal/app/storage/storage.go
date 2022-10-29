@@ -18,14 +18,14 @@ func init() {
 }
 
 type Storager interface {
-	Add(longUrl string) (uid string)
+	Add(longURL string) (uid string)
 	GetURL(uid string) (string, bool)
 	Stat(uid string) (string, uint, string)
 	Update(uid string) bool
 }
 
 type urlEl struct {
-	longUrl   string
+	longURL   string
 	created   time.Time
 	statistic uint // short URL usage statistics (actually this is the number of redirects)
 }
@@ -35,13 +35,13 @@ type Urls struct {
 	mtx  *sync.Mutex
 }
 
-func (u *Urls) Add(longUrl string) (uid string) {
-	if !strings.HasPrefix(longUrl, "http") {
-		longUrl = "http://" + longUrl
+func (u *Urls) Add(longURL string) (uid string) {
+	if !strings.HasPrefix(longURL, "http") {
+		longURL = "http://" + longURL
 	}
 
-	uid = service.GenUid(5)
-	u.data[uid] = &urlEl{longUrl, time.Now(), 0}
+	uid = service.GenUID(5)
+	u.data[uid] = &urlEl{longURL, time.Now(), 0}
 
 	return uid
 }
@@ -49,7 +49,7 @@ func (u *Urls) Add(longUrl string) (uid string) {
 func (u *Urls) GetURL(uid string) (string, bool) {
 	uri, ok := u.data[uid]
 	if ok {
-		return uri.longUrl, ok
+		return uri.longURL, ok
 	}
 	return "", ok
 }
@@ -70,5 +70,5 @@ func (u *Urls) Stat(uid string) (string, uint, string) {
 	if !ok {
 		return "", 0, ""
 	}
-	return uri.longUrl, uri.statistic, uri.created.Format("02.01.2006 15:04:05")
+	return uri.longURL, uri.statistic, uri.created.Format("02.01.2006 15:04:05")
 }

@@ -5,7 +5,7 @@ import (
 )
 
 func TestIsUrl(t *testing.T) {
-	f := IsUrl
+	f := IsURL
 	tests := []struct {
 		uri   string
 		check bool
@@ -35,8 +35,8 @@ func TestIsUrl(t *testing.T) {
 
 func TestCreateShortId(t *testing.T) {
 	size := 5
-	id1 := GenUid(uint(size))
-	id2 := GenUid(uint(size))
+	id1 := GenUID(uint(size))
+	id2 := GenUID(uint(size))
 	if len(id1) != size || len(id2) != size {
 		t.Errorf("uid should be сonsist %d characters", size)
 	}

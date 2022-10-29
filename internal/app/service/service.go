@@ -7,7 +7,7 @@ import (
 )
 
 // generate uid string (letters English Alphabet)
-func GenUid(size uint) string {
+func GenUID(size uint) string {
 	abc := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0")
 	b := make([]byte, 5)
 	randomizer(b)
@@ -28,7 +28,7 @@ func randomizer(buf []byte) {
 	}
 }
 
-func IsUrl(uri string) error {
+func IsURL(uri string) error {
 	switch {
 	case strings.HasPrefix(uri, "https://") && strings.TrimPrefix(uri, "https://") != "",
 		strings.HasPrefix(uri, "http://") && strings.TrimPrefix(uri, "http://") != "",

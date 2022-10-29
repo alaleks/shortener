@@ -27,9 +27,9 @@ func TestAddGetUpdate(t *testing.T) {
 		},
 	}
 	for i, v := range tests {
-		longurl, _ := urls.GetURL(v.uid)
-		if v.longUrl != longurl {
-			t.Errorf("not correct expected url: %s", v.longUrl)
+		longURL, _ := urls.GetURL(v.uid)
+		if v.longURL != longURL {
+			t.Errorf("not correct expected url: %s", v.longURL)
 		}
 		if i == 1 {
 			urls.Update(v.uid)

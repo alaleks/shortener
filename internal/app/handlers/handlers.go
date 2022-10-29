@@ -28,7 +28,7 @@ func ShortenURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = service.IsUrl(longUrl)
+	err = service.IsURL(longUrl)
 
 	if err == nil {
 		w.WriteHeader(http.StatusCreated)
