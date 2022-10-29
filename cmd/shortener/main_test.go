@@ -94,8 +94,8 @@ func TestShortenURL(t *testing.T) {
 	}
 }
 
-func TestParseShortURL(t *testing.T) {
-	shortUrl := func() string {
+func TestParseshortURL(t *testing.T) {
+	shortURL := func() string {
 		request := httptest.NewRequest(http.MethodPost, "http://localhost:8080/", bytes.NewBuffer([]byte("https://github.com/alaleks/shortener")))
 		responseRecorder := httptest.NewRecorder()
 		handler.ServeHTTP(responseRecorder, request)
@@ -109,20 +109,20 @@ func TestParseShortURL(t *testing.T) {
 		name     string
 		code     int
 		url      string
-		shorturl string
+		shortURL string
 		body     string
 	}{
 		{
 			name:     "Тест с корректным uid",
 			code:     307,
-			shorturl: shortUrl,
+			shortURL: shortURL,
 			url:      "https://github.com/alaleks/shortener",
 			body:     "",
 		},
 		{
 			name:     "Тест с некорректным uid",
 			code:     400,
-			shorturl: "http://localhost:8080/1",
+			shortURL: "http://localhost:8080/1",
 			url:      "https://github.com/alaleks/shortener",
 			body:     "this short url is invalid",
 		},
@@ -131,7 +131,7 @@ func TestParseShortURL(t *testing.T) {
 	for _, v := range tests {
 		v := v
 		t.Run(v.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, v.shorturl, nil)
+			req := httptest.NewRequest(http.MethodGet, v.shortURL, nil)
 			resRec := httptest.NewRecorder()
 			handler.ServeHTTP(resRec, req)
 			res := resRec.Result()
@@ -157,7 +157,7 @@ func TestParseShortURL(t *testing.T) {
 }
 
 func TestGetStat(t *testing.T) {
-	shortUrl := func() string {
+	shortURL := func() string {
 		request := httptest.NewRequest(http.MethodPost, "http://localhost:8080/", bytes.NewBuffer([]byte("https://github.com/alaleks/shortener")))
 		responseRecorder := httptest.NewRecorder()
 		handler.ServeHTTP(responseRecorder, request)
@@ -175,12 +175,12 @@ func TestGetStat(t *testing.T) {
 		{
 			name: "Тест с корректным uid",
 			code: 200,
-			uri:  shortUrl + "/statistic",
+			uri:  shortURL + "/statistic",
 		},
 		{
 			name: "Тест с некорректным uid",
 			code: 400,
-			uri:  shortUrl + "1/statistic",
+			uri:  shortURL + "1/statistic",
 		},
 	}
 

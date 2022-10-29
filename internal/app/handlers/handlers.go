@@ -21,14 +21,14 @@ func ShortenURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	longUrl := strings.TrimSpace(string(body))
+	longURL := strings.TrimSpace(string(body))
 
-	if longUrl == "" {
+	if longURL == "" {
 		http.Error(w, "url is empty", http.StatusBadRequest)
 		return
 	}
 
-	err = service.IsURL(longUrl)
+	err = service.IsURL(longURL)
 
 	if err == nil {
 		w.WriteHeader(http.StatusCreated)
@@ -38,7 +38,7 @@ func ShortenURL(w http.ResponseWriter, r *http.Request) {
 			host = "https://" + r.Host + "/"
 		}
 
-		uid := storage.DataStorage.Add(longUrl)
+		uid := storage.DataStorage.Add(longURL)
 		w.Write([]byte(host + uid))
 		return
 	}
@@ -55,13 +55,13 @@ func ParseShortURL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	longUrl, ok := storage.DataStorage.GetURL(uid)
+	longURL, ok := storage.DataStorage.GetURL(uid)
 	if !ok {
 		http.Error(w, "this short url is invalid", http.StatusBadRequest)
 		return
 	}
 	storage.DataStorage.Update(uid)
-	w.Header().Set("Location", longUrl)
+	w.Header().Set("Location", longURL)
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
@@ -79,11 +79,11 @@ func GetStat(w http.ResponseWriter, r *http.Request) {
 		host = "https://" + r.Host + "/"
 	}
 
-	longUrl, counterStat, created := storage.DataStorage.Stat(uid)
+	longURL, counterStat, created := storage.DataStorage.Stat(uid)
 
-	if longUrl == "" {
+	if longURL == "" {
 		http.Error(w, "uid is invalid", http.StatusBadRequest)
 	}
 
-	w.Write([]byte(fmt.Sprintf("short link: %s%s \nurl: %s \nusage: %d \ncreated: %s", host, uid, longUrl, counterStat, created)))
+	w.Write([]byte(fmt.Sprintf("short link: %s%s \nurl: %s \nusage: %d \ncreated: %s", host, uid, longURL, counterStat, created)))
 }
