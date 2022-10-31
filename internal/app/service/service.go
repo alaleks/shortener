@@ -9,7 +9,7 @@ import (
 // generate uid string (letters English Alphabet)
 func GenUID(size uint) string {
 	abc := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0")
-	b := make([]byte, 5)
+	b := make([]byte, size)
 	randomizer(b)
 	charCnt := byte(len(abc))
 	for i := range b {
@@ -37,11 +37,4 @@ func IsURL(uri string) error {
 	default:
 		return fmt.Errorf("invalid url: %s", uri)
 	}
-}
-
-func RemovePrefix(str string, prefixs ...string) string {
-	for _, prefix := range prefixs {
-		str = strings.TrimPrefix(str, prefix)
-	}
-	return str
 }

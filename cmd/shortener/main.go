@@ -8,14 +8,9 @@ import (
 )
 
 func main() {
-	server, err := serv.New(":8080")
-	// здесь ошибка возвращается если недоступен порт
-	// поэтому нужна проверка перед стартом сервера
-	if err != nil {
-		log.Fatal(err)
-	}
+	server := serv.New(":8080")
 
-	err = serv.Run(server)
+	err := serv.Run(server)
 	if err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}

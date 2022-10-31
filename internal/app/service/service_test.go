@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestIsUrl(t *testing.T) {
+func TestIsURL(t *testing.T) {
 	f := IsURL
 	tests := []struct {
 		uri   string
@@ -43,23 +43,4 @@ func TestCreateShortId(t *testing.T) {
 	if id1 == id2 {
 		t.Errorf("uids should not be egual each other")
 	}
-}
-
-func TestRemovePrefix(t *testing.T) {
-	tests := []struct {
-		uriRaw  string
-		uriWant string
-	}{
-		{"https://github.com/alaleks/shortener", "github.com/alaleks/shortener"},
-		{"http://github.com/alaleks/shortener", "github.com/alaleks/shortener"},
-		{"www.github.com/alaleks/shortener", "github.com/alaleks/shortener"},
-	}
-
-	for _, v := range tests {
-		urlClean := RemovePrefix(v.uriRaw, "https://", "http://", "www.")
-		if urlClean != v.uriWant {
-			t.Errorf("url clean should be %s", v.uriWant)
-		}
-	}
-
 }

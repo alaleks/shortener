@@ -8,15 +8,6 @@ import (
 	"github.com/alaleks/shortener/internal/app/service"
 )
 
-var DataStorage Storager
-
-func init() {
-	DataStorage = &Urls{
-		data: make(map[string]*urlEl),
-		mtx:  &sync.Mutex{},
-	}
-}
-
 type Storager interface {
 	Add(longURL string) (uid string)
 	GetURL(uid string) (string, bool)
@@ -32,14 +23,15 @@ type urlEl struct {
 
 type Urls struct {
 	data map[string]*urlEl // where key uid short url
-	mtx  *sync.Mutex
+	mu   sync.RWMutex
 }
 
 func (u *Urls) Add(longURL string) (uid string) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
 	if !strings.HasPrefix(longURL, "http") {
 		longURL = "http://" + longURL
 	}
-
 	uid = service.GenUID(5)
 	u.data[uid] = &urlEl{longURL, time.Now(), 0}
 
@@ -47,6 +39,8 @@ func (u *Urls) Add(longURL string) (uid string) {
 }
 
 func (u *Urls) GetURL(uid string) (string, bool) {
+	u.mu.RLock()
+	defer u.mu.RUnlock()
 	uri, ok := u.data[uid]
 	if ok {
 		return uri.longURL, ok
@@ -55,8 +49,8 @@ func (u *Urls) GetURL(uid string) (string, bool) {
 }
 
 func (u *Urls) Update(uid string) bool {
-	u.mtx.Lock()
-	defer u.mtx.Unlock()
+	u.mu.Lock()
+	defer u.mu.Unlock()
 	uri, ok := u.data[uid]
 	if ok {
 		uri.statistic++
@@ -66,9 +60,18 @@ func (u *Urls) Update(uid string) bool {
 }
 
 func (u *Urls) Stat(uid string) (string, uint, string) {
+	u.mu.RLock()
+	defer u.mu.RUnlock()
 	uri, ok := u.data[uid]
 	if !ok {
 		return "", 0, ""
 	}
 	return uri.longURL, uri.statistic, uri.created.Format("02.01.2006 15:04:05")
+}
+
+func New() Storager {
+	return &Urls{
+		data: make(map[string]*urlEl),
+		mu:   sync.RWMutex{},
+	}
 }
