@@ -13,7 +13,7 @@ import (
 func New(port string) *http.Server {
 	var (
 		appConf    config.Configurator = config.New(port)
-		appHandler handlers.Handlerer  = handlers.New()
+		appHandler handlers.Handler    = handlers.New()
 	)
 
 	timeout, readHeaderTimeout, idleTimeout := 1, 2, 30

@@ -12,11 +12,11 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type Handler struct {
+type Handlers struct {
 	DataStorage storage.Storager
 }
 
-type Handlerer interface {
+type Handler interface {
 	ShortenURL(writer http.ResponseWriter, req *http.Request)
 	ParseShortURL(writer http.ResponseWriter, req *http.Request)
 	GetStat(writer http.ResponseWriter, req *http.Request)
@@ -35,11 +35,11 @@ type Statistics struct {
 	CreatedAt string `json:"createdAt"`
 }
 
-func New() *Handler {
-	return &Handler{DataStorage: storage.New()}
+func New() *Handlers {
+	return &Handlers{DataStorage: storage.New()}
 }
 
-func (h *Handler) ShortenURL(writer http.ResponseWriter, req *http.Request) {
+func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
@@ -79,7 +79,7 @@ func (h *Handler) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (h *Handler) ParseShortURL(writer http.ResponseWriter, req *http.Request) {
+func (h *Handlers) ParseShortURL(writer http.ResponseWriter, req *http.Request) {
 	uid := mux.Vars(req)["uid"]
 
 	if uid == "" {
@@ -100,7 +100,7 @@ func (h *Handler) ParseShortURL(writer http.ResponseWriter, req *http.Request) {
 	writer.WriteHeader(http.StatusTemporaryRedirect)
 }
 
-func (h *Handler) GetStat(writer http.ResponseWriter, req *http.Request) {
+func (h *Handlers) GetStat(writer http.ResponseWriter, req *http.Request) {
 	uid := mux.Vars(req)["uid"]
 	if uid == "" {
 		http.Error(writer, ErrEmptyURL.Error(), http.StatusBadRequest)

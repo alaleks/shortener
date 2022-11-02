@@ -7,7 +7,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func Create(handler handlers.Handlerer) http.Handler {
+func Create(handler handlers.Handler) http.Handler {
 	mux := mux.NewRouter()
 	mux.HandleFunc("/", handler.ShortenURL).Methods("POST")
 	mux.HandleFunc("/{uid}", handler.ParseShortURL).Methods("GET")
