@@ -2,29 +2,38 @@ package service
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"strings"
 )
 
-// generate uid string (letters English Alphabet)
-func GenUID(size uint) string {
-	abc := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0")
-	b := make([]byte, size)
-	randomizer(b)
+var ErrInvalidURL = errors.New("invalid url")
+
+// generate uid string (letters English Alphabet).
+func GenUID(size int) string {
+	abc := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	buf := make([]byte, uint(size))
+
+	randomizer(buf)
+
 	charCnt := byte(len(abc))
-	for i := range b {
-		b[i] = abc[b[i]%charCnt]
+
+	for i := range buf {
+		buf[i] = abc[buf[i]%charCnt]
 	}
-	return string(b)
+
+	return string(buf)
 }
 
 func randomizer(buf []byte) {
-	var n int
+	var number int
+
 	var err error
-	for n < len(buf) && err == nil {
+
+	for number < len(buf) && err == nil {
 		var i int
-		i, err = rand.Reader.Read(buf[n:])
-		n += i
+		i, err = rand.Reader.Read(buf[number:])
+		number += i
 	}
 }
 
@@ -35,6 +44,6 @@ func IsURL(uri string) error {
 		strings.HasPrefix(uri, "www.") && strings.TrimPrefix(uri, "www.") != "":
 		return nil
 	default:
-		return fmt.Errorf("invalid url: %s", uri)
+		return fmt.Errorf("%w: %s", ErrInvalidURL, uri)
 	}
 }

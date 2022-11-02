@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
@@ -10,8 +11,7 @@ import (
 func main() {
 	server := serv.New(":8080")
 
-	err := serv.Run(server)
-	if err != nil && err != http.ErrServerClosed {
+	if err := serv.Run(server); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
 }

@@ -4,16 +4,14 @@ import (
 	"net/http"
 
 	"github.com/alaleks/shortener/internal/app/handlers"
-	"github.com/alaleks/shortener/internal/app/storage"
 	"github.com/gorilla/mux"
 )
 
-func Create() http.Handler {
-	DataStorage := storage.New()
-
+func Create(handler handlers.Handlerer) http.Handler {
 	mux := mux.NewRouter()
-	mux.HandleFunc("/", handlers.ShortenURL(DataStorage)).Methods("POST")
-	mux.HandleFunc("/{uid}", handlers.ParseShortURL(DataStorage)).Methods("GET")
-	mux.HandleFunc("/{uid}/statistic", handlers.GetStat(DataStorage)).Methods("GET")
+	mux.HandleFunc("/", handler.ShortenURL).Methods("POST")
+	mux.HandleFunc("/{uid}", handler.ParseShortURL).Methods("GET")
+	mux.HandleFunc("/{uid}/statistics", handler.GetStat).Methods("GET")
+
 	return mux
 }

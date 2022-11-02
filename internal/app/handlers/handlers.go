@@ -1,93 +1,141 @@
 package handlers
 
 import (
-	"fmt"
+	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
 
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/alaleks/shortener/internal/app/storage"
-
 	"github.com/gorilla/mux"
 )
 
-func ShortenURL(dataStorage storage.Storager) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		body, err := io.ReadAll(r.Body)
+type Handler struct {
+	DataStorage storage.Storager
+}
 
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
+type Handlerer interface {
+	ShortenURL(writer http.ResponseWriter, req *http.Request)
+	ParseShortURL(writer http.ResponseWriter, req *http.Request)
+	GetStat(writer http.ResponseWriter, req *http.Request)
+}
 
-		longURL := strings.TrimSpace(string(body))
+var (
+	ErrEmptyURL   = errors.New("url is empty")
+	ErrWriter     = errors.New("sorry, an error was occurring, please try again")
+	ErrUIDInvalid = errors.New("short url is invalid")
+)
 
-		if longURL == "" {
-			http.Error(w, "url is empty", http.StatusBadRequest)
-			return
-		}
+type Statistics struct {
+	ShortURL  string `json:"shorturl"`
+	LongURL   string `json:"longurl"`
+	Usage     uint   `json:"usage"`
+	CreatedAt string `json:"createdAt"`
+}
 
-		err = service.IsURL(longURL)
+func New() *Handler {
+	return &Handler{DataStorage: storage.New()}
+}
 
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		}
+func (h *Handler) ShortenURL(writer http.ResponseWriter, req *http.Request) {
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
 
-		w.WriteHeader(http.StatusCreated)
-		host := "http://" + r.Host + "/"
+		return
+	}
 
-		if r.TLS != nil {
-			host = "https://" + r.Host + "/"
-		}
+	longURL := strings.TrimSpace(string(body))
 
-		uid := dataStorage.Add(longURL)
-		w.Write([]byte(host + uid))
+	if longURL == "" {
+		http.Error(writer, ErrEmptyURL.Error(), http.StatusBadRequest)
 
+		return
+	}
+
+	err = service.IsURL(longURL)
+
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+	}
+
+	writer.WriteHeader(http.StatusCreated)
+
+	host := "http://" + req.Host + "/"
+
+	if req.TLS != nil {
+		host = "https://" + req.Host + "/"
+	}
+
+	size := 5
+	uid := h.DataStorage.Add(longURL, size)
+
+	if _, err := writer.Write([]byte(host + uid)); err != nil {
+		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
+
+		return
 	}
 }
 
-func ParseShortURL(dataStorage storage.Storager) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		uid := mux.Vars(r)["uid"]
+func (h *Handler) ParseShortURL(writer http.ResponseWriter, req *http.Request) {
+	uid := mux.Vars(req)["uid"]
 
-		if uid == "" {
-			http.Error(w, "uid is empty", http.StatusBadRequest)
-			return
-		}
+	if uid == "" {
+		http.Error(writer, ErrEmptyURL.Error(), http.StatusBadRequest)
 
-		longURL, ok := dataStorage.GetURL(uid)
-		if !ok {
-			http.Error(w, "this short url is invalid", http.StatusBadRequest)
-			return
-		}
-		dataStorage.Update(uid)
-		w.Header().Set("Location", longURL)
-		w.WriteHeader(http.StatusTemporaryRedirect)
+		return
 	}
+
+	longURL, ok := h.DataStorage.GetURL(uid)
+	if !ok {
+		http.Error(writer, ErrUIDInvalid.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	h.DataStorage.Update(uid)
+	writer.Header().Set("Location", longURL)
+	writer.WriteHeader(http.StatusTemporaryRedirect)
 }
 
-func GetStat(dataStorage storage.Storager) func(w http.ResponseWriter, r *http.Request) {
-	return func(w http.ResponseWriter, r *http.Request) {
-		uid := mux.Vars(r)["uid"]
+func (h *Handler) GetStat(writer http.ResponseWriter, req *http.Request) {
+	uid := mux.Vars(req)["uid"]
+	if uid == "" {
+		http.Error(writer, ErrEmptyURL.Error(), http.StatusBadRequest)
 
-		if uid == "" {
-			http.Error(w, "uid is empty", http.StatusBadRequest)
-			return
-		}
+		return
+	}
 
-		host := "http://" + r.Host + "/"
+	host := "http://" + req.Host + "/"
 
-		if r.TLS != nil {
-			host = "https://" + r.Host + "/"
-		}
+	if req.TLS != nil {
+		host = "https://" + req.Host + "/"
+	}
 
-		longURL, counterStat, created := dataStorage.Stat(uid)
+	longURL, counterStat, createdAt := h.DataStorage.Stat(uid)
 
-		if longURL == "" {
-			http.Error(w, "uid is invalid", http.StatusBadRequest)
-		}
+	if longURL == "" {
+		http.Error(writer, ErrUIDInvalid.Error(), http.StatusBadRequest)
 
-		w.Write([]byte(fmt.Sprintf("short link: %s%s \nurl: %s \nusage: %d \ncreated: %s", host, uid, longURL, counterStat, created)))
+		return
+	}
+
+	dataForRes := Statistics{ShortURL: host + uid, LongURL: longURL, Usage: counterStat, CreatedAt: createdAt}
+	toJSON, err := json.Marshal(dataForRes)
+
+	if err != nil {
+		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+
+	if _, err := writer.Write(toJSON); err != nil {
+		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
+
+		return
 	}
 }

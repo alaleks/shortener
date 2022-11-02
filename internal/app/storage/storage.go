@@ -9,69 +9,79 @@ import (
 )
 
 type Storager interface {
-	Add(longURL string) (uid string)
+	Add(longURL string, sizeUID int) string
 	GetURL(uid string) (string, bool)
 	Stat(uid string) (string, uint, string)
 	Update(uid string) bool
 }
 
-type urlEl struct {
-	longURL   string
-	created   time.Time
-	statistic uint // short URL usage statistics (actually this is the number of redirects)
+type URLElement struct {
+	longURL    string
+	createdAt  time.Time
+	statistics uint // short URL usage statistics (actually this is the number of redirects)
 }
 
 type Urls struct {
-	data map[string]*urlEl // where key uid short url
+	data map[string]*URLElement // where key uid short url
 	mu   sync.RWMutex
 }
 
-func (u *Urls) Add(longURL string) (uid string) {
-	u.mu.Lock()
-	defer u.mu.Unlock()
+func New() *Urls {
+	return &Urls{
+		data: make(map[string]*URLElement),
+		mu:   sync.RWMutex{},
+	}
+}
+
+func (u *Urls) Add(longURL string, sizeUID int) string {
 	if !strings.HasPrefix(longURL, "http") {
 		longURL = "http://" + longURL
 	}
-	uid = service.GenUID(5)
-	u.data[uid] = &urlEl{longURL, time.Now(), 0}
+
+	// генерируем id
+	uid := service.GenUID(sizeUID)
+
+	element := &URLElement{
+		longURL:    longURL,
+		createdAt:  time.Now(),
+		statistics: 0,
+	}
+
+	u.mu.Lock()
+	u.data[uid] = element
+	u.mu.Unlock()
 
 	return uid
 }
 
 func (u *Urls) GetURL(uid string) (string, bool) {
-	u.mu.RLock()
-	defer u.mu.RUnlock()
-	uri, ok := u.data[uid]
-	if ok {
-		return uri.longURL, ok
+	uri, check := u.data[uid]
+
+	if check {
+		return uri.longURL, check
 	}
-	return "", ok
+
+	return "", check
 }
 
 func (u *Urls) Update(uid string) bool {
-	u.mu.Lock()
-	defer u.mu.Unlock()
-	uri, ok := u.data[uid]
-	if ok {
-		uri.statistic++
-		u.data[uid] = uri
+	element, check := u.data[uid]
+
+	if check {
+		u.mu.Lock()
+		defer u.mu.Unlock()
+		element.statistics++
 	}
-	return ok
+
+	return check
 }
 
 func (u *Urls) Stat(uid string) (string, uint, string) {
-	u.mu.RLock()
-	defer u.mu.RUnlock()
-	uri, ok := u.data[uid]
-	if !ok {
+	uri, check := u.data[uid]
+
+	if !check {
 		return "", 0, ""
 	}
-	return uri.longURL, uri.statistic, uri.created.Format("02.01.2006 15:04:05")
-}
 
-func New() Storager {
-	return &Urls{
-		data: make(map[string]*urlEl),
-		mu:   sync.RWMutex{},
-	}
+	return uri.longURL, uri.statistics, uri.createdAt.Format("02.01.2006 15:04:05")
 }
