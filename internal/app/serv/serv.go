@@ -1,7 +1,6 @@
 package serv
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -10,19 +9,24 @@ import (
 	"github.com/alaleks/shortener/internal/app/router"
 )
 
-func New(port string) *http.Server {
+const (
+	defaultTimeout           = time.Second
+	defaultReadHeaderTimeout = 2 * time.Second
+	defaultIdleTimeout       = 15 * time.Second
+)
+
+func New(port string, sizeUID int) *http.Server {
 	var (
 		appConf    config.Configurator = config.New(port)
-		appHandler handlers.Handler    = handlers.New()
+		appHandler handlers.Handler    = handlers.New(sizeUID)
 	)
 
-	timeout, readHeaderTimeout, idleTimeout := 1, 2, 30
 	server := &http.Server{
 		Handler:           router.Create(appHandler),
-		ReadTimeout:       time.Duration(timeout) * time.Second,
-		WriteTimeout:      time.Duration(timeout) * time.Second,
-		IdleTimeout:       time.Duration(idleTimeout) * time.Second,
-		ReadHeaderTimeout: time.Duration(readHeaderTimeout) * time.Second,
+		ReadTimeout:       defaultTimeout,
+		WriteTimeout:      defaultTimeout,
+		IdleTimeout:       defaultIdleTimeout,
+		ReadHeaderTimeout: defaultReadHeaderTimeout,
 		Addr:              appConf.Port(),
 	}
 
@@ -30,5 +34,5 @@ func New(port string) *http.Server {
 }
 
 func Run(server *http.Server) error {
-	return fmt.Errorf("server error: %w", server.ListenAndServe())
+	return server.ListenAndServe()
 }

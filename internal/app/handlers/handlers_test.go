@@ -16,7 +16,7 @@ func TestShortenURL(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	testHandler := handlers.New()
+	testHandler := handlers.New(5)
 	templateShortURL := "http://localhost:8080/#uids"
 	host := "http://localhost:8080/"
 
@@ -70,13 +70,11 @@ func TestParseShortURL(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	testHandler := handlers.New()
-	// размер uid
-	size := 5
+	testHandler := handlers.New(5)
 	// генерируем uid
 	longURL := "https://github.com/alaleks/shortener"
 	// добавляем короткую ссылку
-	uid := testHandler.DataStorage.Add(longURL, size)
+	uid := testHandler.DataStorage.Add(longURL, testHandler.SizeUID)
 	host := "http://localhost:8080/"
 	// создаем роутеры
 	routers := router.Create(testHandler)
@@ -128,15 +126,13 @@ func TestGetStat(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	testHandler := handlers.New()
-	// размер uid
-	size := 5
+	testHandler := handlers.New(5)
 	// генерируем uid
 	longURL1 := "https://github.com/alaleks/shortener"
 	longURL2 := "https://yandex.ru/pogoda/krasnodar"
 	// добавляем длинные ссылки в хранилище
-	uid1 := testHandler.DataStorage.Add(longURL1, size)
-	uid2 := testHandler.DataStorage.Add(longURL2, size)
+	uid1 := testHandler.DataStorage.Add(longURL1, testHandler.SizeUID)
+	uid2 := testHandler.DataStorage.Add(longURL2, testHandler.SizeUID)
 	host := "http://localhost:8080/"
 	// для uid1 изменяем статистику
 	testHandler.DataStorage.Update(uid1)

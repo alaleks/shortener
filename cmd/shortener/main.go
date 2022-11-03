@@ -9,9 +9,10 @@ import (
 )
 
 func main() {
-	server := serv.New(":8080")
+	sizeUID := 5
+	server := serv.New(":8080", sizeUID)
 
-	if err := serv.Run(server); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := serv.Run(server); !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
 }

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -13,7 +14,8 @@ import (
 )
 
 type Handlers struct {
-	DataStorage storage.Storager
+	DataStorage storage.Storage
+	SizeUID     int
 }
 
 type Handler interface {
@@ -24,7 +26,7 @@ type Handler interface {
 
 var (
 	ErrEmptyURL   = errors.New("url is empty")
-	ErrWriter     = errors.New("sorry, an error was occurring, please try again")
+	ErrWriter     = errors.New("sorry, an error has occurred, please try again")
 	ErrUIDInvalid = errors.New("short url is invalid")
 )
 
@@ -35,8 +37,8 @@ type Statistics struct {
 	CreatedAt string `json:"createdAt"`
 }
 
-func New() *Handlers {
-	return &Handlers{DataStorage: storage.New()}
+func New(size int) *Handlers {
+	return &Handlers{DataStorage: storage.New(), SizeUID: size}
 }
 
 func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
@@ -59,20 +61,29 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
 	}
 
 	writer.WriteHeader(http.StatusCreated)
 
-	host := "http://" + req.Host + "/"
+	// формируем короткую ссылку
+	var shortURL bytes.Buffer
 
-	if req.TLS != nil {
-		host = "https://" + req.Host + "/"
-	}
+	shortURL.WriteString(func() string {
+		if req.TLS != nil {
+			return "https://"
+		}
 
-	size := 5
-	uid := h.DataStorage.Add(longURL, size)
+		return "http://"
+	}())
 
-	if _, err := writer.Write([]byte(host + uid)); err != nil {
+	shortURL.WriteString(req.Host + "/")
+
+	uid := h.DataStorage.Add(longURL, h.SizeUID)
+	shortURL.WriteString(uid)
+
+	if _, err := writer.Write(shortURL.Bytes()); err != nil {
 		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
 
 		return

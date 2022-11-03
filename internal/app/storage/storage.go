@@ -8,7 +8,7 @@ import (
 	"github.com/alaleks/shortener/internal/app/service"
 )
 
-type Storager interface {
+type Storage interface {
 	Add(longURL string, sizeUID int) string
 	GetURL(uid string) (string, bool)
 	Stat(uid string) (string, uint, string)
@@ -55,7 +55,9 @@ func (u *Urls) Add(longURL string, sizeUID int) string {
 }
 
 func (u *Urls) GetURL(uid string) (string, bool) {
+	u.mu.RLock()
 	uri, check := u.data[uid]
+	u.mu.RUnlock()
 
 	if check {
 		return uri.longURL, check
@@ -65,11 +67,11 @@ func (u *Urls) GetURL(uid string) (string, bool) {
 }
 
 func (u *Urls) Update(uid string) bool {
+	u.mu.Lock()
+	defer u.mu.Unlock()
 	element, check := u.data[uid]
 
 	if check {
-		u.mu.Lock()
-		defer u.mu.Unlock()
 		element.statistics++
 	}
 
@@ -77,7 +79,9 @@ func (u *Urls) Update(uid string) bool {
 }
 
 func (u *Urls) Stat(uid string) (string, uint, string) {
+	u.mu.RLock()
 	uri, check := u.data[uid]
+	u.mu.RUnlock()
 
 	if !check {
 		return "", 0, ""
