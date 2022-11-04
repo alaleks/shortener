@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/alaleks/shortener/internal/app/storage"
@@ -37,8 +36,8 @@ type Statistics struct {
 	CreatedAt string `json:"createdAt"`
 }
 
-func New(size int) *Handlers {
-	return &Handlers{DataStorage: storage.New(), SizeUID: size}
+func New(sizeShortUID int) *Handlers {
+	return &Handlers{DataStorage: storage.New(), SizeUID: sizeShortUID}
 }
 
 func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
@@ -49,7 +48,7 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	longURL := strings.TrimSpace(string(body))
+	longURL := string(bytes.TrimSpace(body))
 
 	if longURL == "" {
 		http.Error(writer, ErrEmptyURL.Error(), http.StatusBadRequest)
@@ -133,9 +132,14 @@ func (h *Handlers) GetStat(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	dataForRes := Statistics{ShortURL: host + uid, LongURL: longURL, Usage: counterStat, CreatedAt: createdAt}
-	toJSON, err := json.Marshal(dataForRes)
+	dataForRes := Statistics{
+		ShortURL:  host + uid,
+		LongURL:   longURL,
+		Usage:     counterStat,
+		CreatedAt: createdAt,
+	}
 
+	toJSON, err := json.Marshal(dataForRes)
 	if err != nil {
 		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
 
