@@ -2,7 +2,6 @@ package handlers_test
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,13 +11,14 @@ import (
 	"github.com/alaleks/shortener/internal/app/router"
 )
 
+const host = "http://localhost:8080/"
+
 func TestShortenURL(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
 	testHandler := handlers.New(5)
 	templateShortURL := "http://localhost:8080/#uids"
-	host := "http://localhost:8080/"
 
 	tests := []struct {
 		name     string
@@ -75,7 +75,6 @@ func TestParseShortURL(t *testing.T) {
 	longURL := "https://github.com/alaleks/shortener"
 	// добавляем короткую ссылку
 	uid := testHandler.DataStorage.Add(longURL, testHandler.SizeUID)
-	host := "http://localhost:8080/"
 	// создаем роутеры
 	routers := router.Create(testHandler)
 
@@ -116,67 +115,6 @@ func TestParseShortURL(t *testing.T) {
 			if err == nil {
 				if resLoc.String() != item.longURL {
 					t.Errorf("location should be %s but received %s", item.longURL, resLoc.String())
-				}
-			}
-		})
-	}
-}
-
-func TestGetStat(t *testing.T) {
-	t.Parallel()
-
-	// данные для теста
-	testHandler := handlers.New(5)
-	// генерируем uid
-	longURL1 := "https://github.com/alaleks/shortener"
-	longURL2 := "https://yandex.ru/pogoda/krasnodar"
-	// добавляем длинные ссылки в хранилище
-	uid1 := testHandler.DataStorage.Add(longURL1, testHandler.SizeUID)
-	uid2 := testHandler.DataStorage.Add(longURL2, testHandler.SizeUID)
-	host := "http://localhost:8080/"
-	// для uid1 изменяем статистику
-	testHandler.DataStorage.Update(uid1)
-	// создаем роутеры
-	routers := router.Create(testHandler)
-
-	tests := []struct {
-		name    string
-		code    int
-		stat    uint
-		uriStat string
-	}{
-		{name: "стат uid #1", code: 200, stat: 1, uriStat: host + uid1 + "/statistics"},
-		{name: "стат uid #2", code: 200, stat: 0, uriStat: host + uid2 + "/statistics"},
-		{name: "стат некорректной короткой ссылки", code: 400, uriStat: host + "badId/statistics"},
-	}
-
-	// тестируем
-	for _, v := range tests {
-		item := v
-		t.Run(item.name, func(t *testing.T) {
-			t.Parallel()
-
-			// создаем запрос, рекордер, хэндлер, запускаем сервер
-			w := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, item.uriStat, nil)
-			routers.ServeHTTP(w, req)
-			res := w.Result()
-
-			if res != nil {
-				defer res.Body.Close()
-			}
-
-			// проверка возвращаемого кода
-			if res.StatusCode != item.code {
-				t.Errorf("status code should be %d but received %d", item.code, res.StatusCode)
-			}
-			resBody, err := io.ReadAll(res.Body)
-			if res.StatusCode == 200 && err == nil {
-				var stat handlers.Statistics
-				if json.Unmarshal(resBody, &stat) == nil {
-					if stat.Usage != item.stat {
-						t.Errorf("mismatch statistics: should be %d but received %d", item.stat, stat.Usage)
-					}
 				}
 			}
 		})

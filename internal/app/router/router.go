@@ -11,7 +11,8 @@ func Create(handler handlers.Handler) http.Handler {
 	mux := mux.NewRouter()
 	mux.HandleFunc("/", handler.ShortenURL).Methods("POST")
 	mux.HandleFunc("/{uid}", handler.ParseShortURL).Methods("GET")
-	mux.HandleFunc("/{uid}/statistics", handler.GetStat).Methods("GET")
+	mux.HandleFunc("/api/shorten", handler.ShortenURLAPI).Methods("POST")
+	mux.HandleFunc("/api/{uid}/statistics", handler.GetStatAPI).Methods("GET")
 
 	return mux
 }
