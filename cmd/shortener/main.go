@@ -10,7 +10,7 @@ import (
 
 func main() {
 	sizeUID := 5
-	server := serv.New(":8080", sizeUID)
+	server := serv.New(sizeUID)
 
 	if err := serv.Run(server); !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)

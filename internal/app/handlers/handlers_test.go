@@ -7,17 +7,26 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/handlers"
 	"github.com/alaleks/shortener/internal/app/router"
 )
 
-const host = "http://localhost:8080/"
+func init() {
+	config.SetEnvApp("localhost:8080", "localhost:8080")
+}
+
+var (
+	appConf = config.New()
+	baseURL = appConf.GetBaseURL()
+)
 
 func TestShortenURL(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	testHandler := handlers.New(5)
+	appConf := config.New()
+	testHandler := handlers.New(5, appConf.GetBaseURL())
 	templateShortURL := "http://localhost:8080/#uids"
 
 	tests := []struct {
@@ -45,7 +54,7 @@ func TestShortenURL(t *testing.T) {
 			// создаем запрос, рекордер, хэндлер, запускаем сервер
 			w := httptest.NewRecorder()
 			h := http.HandlerFunc(testHandler.ShortenURL)
-			req := httptest.NewRequest(http.MethodPost, host, bytes.NewBuffer([]byte(item.url)))
+			req := httptest.NewRequest(http.MethodPost, baseURL.String(), bytes.NewBuffer([]byte(item.url)))
 			h.ServeHTTP(w, req)
 			res := w.Result()
 
@@ -60,7 +69,7 @@ func TestShortenURL(t *testing.T) {
 			}
 			// проверка возвращаемых коротких ссылок на соответствие шаблону
 			if res.StatusCode == 201 && len(templateShortURL) != len(string(resBody)) {
-				t.Errorf("short url %s does not match pattern", string(resBody))
+				t.Errorf("short url %s does not match pattern %s", string(resBody), templateShortURL)
 			}
 		})
 	}
@@ -70,7 +79,8 @@ func TestParseShortURL(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	testHandler := handlers.New(5)
+	appConf := config.New()
+	testHandler := handlers.New(5, appConf.GetBaseURL())
 	// генерируем uid
 	longURL := "https://github.com/alaleks/shortener"
 	// добавляем короткую ссылку
@@ -84,9 +94,9 @@ func TestParseShortURL(t *testing.T) {
 		shortURL string
 		longURL  string
 	}{
-		{name: "парсинг корректной короткой ссылки", code: 307, longURL: longURL, shortURL: host + uid},
-		{name: "парсинг некорректной короткой ссылки - 1", code: 405, longURL: "", shortURL: host},
-		{name: "парсинг некорректной короткой ссылки - 2", code: 400, longURL: "", shortURL: host + "badId"},
+		{name: "парсинг корректной короткой ссылки", code: 307, longURL: longURL, shortURL: baseURL.String() + uid},
+		{name: "парсинг некорректной короткой ссылки - 1", code: 405, longURL: "", shortURL: baseURL.String()},
+		{name: "парсинг некорректной короткой ссылки - 2", code: 400, longURL: "", shortURL: baseURL.String() + "badId"},
 	}
 
 	// тестируем

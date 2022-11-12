@@ -82,7 +82,7 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 	buffer.Reset()
 
 	output.Success = true
-	output.Result = h.createShortURL(input.URL, req)
+	output.Result = h.createShortURL(input.URL)
 
 	writer.WriteHeader(http.StatusCreated)
 
@@ -99,20 +99,11 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 	}
 }
 
-func (h *Handlers) createShortURL(longURL string, req *http.Request) string {
-	var shortURL bytes.Buffer
-
-	shortURL.WriteString(func() string {
-		if req.TLS != nil {
-			return "https://"
-		}
-
-		return "http://"
-	}())
-
-	shortURL.WriteString(req.Host + "/")
+func (h *Handlers) createShortURL(longURL string) string {
+	shortURL := h.baseURL
 
 	uid := h.DataStorage.Add(longURL, h.SizeUID)
+
 	shortURL.WriteString(uid)
 
 	return shortURL.String()
@@ -126,12 +117,6 @@ func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	host := "http://" + req.Host + "/"
-
-	if req.TLS != nil {
-		host = "https://" + req.Host + "/"
-	}
-
 	longURL, counterStat, createdAt := h.DataStorage.Stat(uid)
 
 	if longURL == "" {
@@ -143,7 +128,7 @@ func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 	var buffer bytes.Buffer
 
 	stat := Statistics{
-		ShortURL:  host + uid,
+		ShortURL:  h.baseURL.String() + uid,
 		LongURL:   longURL,
 		Usage:     counterStat,
 		CreatedAt: createdAt,

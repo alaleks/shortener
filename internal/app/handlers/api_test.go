@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/handlers"
 	"github.com/alaleks/shortener/internal/app/router"
 )
@@ -15,7 +16,8 @@ import (
 func TestShortenURLAPI(t *testing.T) {
 	t.Parallel()
 	// данные для теста
-	testHandler := handlers.New(5)
+	appConf := config.New()
+	testHandler := handlers.New(5, appConf.GetBaseURL())
 
 	tests := []struct {
 		name    string
@@ -41,7 +43,7 @@ func TestShortenURLAPI(t *testing.T) {
 			// создаем запрос, рекордер, хэндлер, запускаем сервер
 			w := httptest.NewRecorder()
 			h := http.HandlerFunc(testHandler.ShortenURLAPI)
-			req := httptest.NewRequest(http.MethodPost, host, bytes.NewBuffer([]byte(item.data)))
+			req := httptest.NewRequest(http.MethodPost, baseURL.String(), bytes.NewBuffer([]byte(item.data)))
 			h.ServeHTTP(w, req)
 			res := w.Result()
 
@@ -72,14 +74,15 @@ func TestGetStatAPI(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	testHandler := handlers.New(5)
+	appConf := config.New()
+	testHandler := handlers.New(5, appConf.GetBaseURL())
 	// генерируем uid
 	longURL1 := "https://github.com/alaleks/shortener"
 	longURL2 := "https://yandex.ru/pogoda/krasnodar"
 	// добавляем длинные ссылки в хранилище
 	uid1 := testHandler.DataStorage.Add(longURL1, testHandler.SizeUID)
 	uid2 := testHandler.DataStorage.Add(longURL2, testHandler.SizeUID)
-	hostStat := host + "api/"
+	hostStat := baseURL.String() + "api/"
 	// для uid1 изменяем статистику
 	testHandler.DataStorage.Update(uid1)
 	// создаем роутеры

@@ -14,6 +14,7 @@ import (
 type Handlers struct {
 	DataStorage storage.Storage
 	SizeUID     int
+	baseURL     bytes.Buffer
 }
 
 type Handler interface {
@@ -29,8 +30,11 @@ var (
 	ErrUIDInvalid = errors.New("short url is invalid")
 )
 
-func New(sizeShortUID int) *Handlers {
-	return &Handlers{DataStorage: storage.New(), SizeUID: sizeShortUID}
+func New(sizeShortUID int, baseURL bytes.Buffer) *Handlers {
+	return &Handlers{
+		DataStorage: storage.New(),
+		SizeUID:     sizeShortUID, baseURL: baseURL,
+	}
 }
 
 func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
@@ -60,18 +64,7 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 	writer.WriteHeader(http.StatusCreated)
 
 	// формируем короткую ссылку
-	var shortURL bytes.Buffer
-
-	shortURL.WriteString(func() string {
-		if req.TLS != nil {
-			return "https://"
-		}
-
-		return "http://"
-	}())
-
-	shortURL.WriteString(req.Host + "/")
-
+	shortURL := h.baseURL
 	uid := h.DataStorage.Add(longURL, h.SizeUID)
 	shortURL.WriteString(uid)
 

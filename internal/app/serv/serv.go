@@ -15,10 +15,10 @@ const (
 	defaultIdleTimeout       = 15 * time.Second
 )
 
-func New(port string, sizeUID int) *http.Server {
+func New(sizeUID int) *http.Server {
 	var (
-		appConf    config.Configurator = config.New(port)
-		appHandler handlers.Handler    = handlers.New(sizeUID)
+		appConf    config.Configurator = config.New()
+		appHandler handlers.Handler    = handlers.New(sizeUID, appConf.GetBaseURL())
 	)
 
 	server := &http.Server{
@@ -27,7 +27,7 @@ func New(port string, sizeUID int) *http.Server {
 		WriteTimeout:      defaultTimeout,
 		IdleTimeout:       defaultIdleTimeout,
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
-		Addr:              appConf.Port(),
+		Addr:              appConf.GetServAddr(),
 	}
 
 	return server
