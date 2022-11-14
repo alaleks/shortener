@@ -9,16 +9,25 @@ import (
 )
 
 type Storage interface {
+	Procucer
+	Consumer
+	FileStorage
+}
+
+type Procucer interface {
 	Add(longURL string, sizeUID int) string
-	GetURL(uid string) (string, bool)
-	Stat(uid string) (string, uint, string)
 	Update(uid string) bool
 }
 
+type Consumer interface {
+	GetURL(uid string) (string, bool)
+	Stat(uid string) (string, uint, string)
+}
+
 type URLElement struct {
-	longURL    string
-	createdAt  time.Time
-	statistics uint // short URL usage statistics (actually this is the number of redirects)
+	LongURL    string
+	CreatedAt  time.Time
+	Statistics uint // short URL usage statistics (actually this is the number of redirects)
 }
 
 type Urls struct {
@@ -27,10 +36,11 @@ type Urls struct {
 }
 
 func New() *Urls {
-	return &Urls{
+	urls := Urls{
 		data: make(map[string]*URLElement),
 		mu:   sync.RWMutex{},
 	}
+	return &urls
 }
 
 func (u *Urls) Add(longURL string, sizeUID int) string {
@@ -42,9 +52,9 @@ func (u *Urls) Add(longURL string, sizeUID int) string {
 	uid := service.GenUID(sizeUID)
 
 	element := &URLElement{
-		longURL:    longURL,
-		createdAt:  time.Now(),
-		statistics: 0,
+		LongURL:    longURL,
+		CreatedAt:  time.Now(),
+		Statistics: 0,
 	}
 
 	u.mu.Lock()
@@ -60,7 +70,7 @@ func (u *Urls) GetURL(uid string) (string, bool) {
 	u.mu.RUnlock()
 
 	if check {
-		return uri.longURL, check
+		return uri.LongURL, check
 	}
 
 	return "", check
@@ -72,7 +82,7 @@ func (u *Urls) Update(uid string) bool {
 	element, check := u.data[uid]
 
 	if check {
-		element.statistics++
+		element.Statistics++
 	}
 
 	return check
@@ -87,5 +97,5 @@ func (u *Urls) Stat(uid string) (string, uint, string) {
 		return "", 0, ""
 	}
 
-	return uri.longURL, uri.statistics, uri.createdAt.Format("02.01.2006 15:04:05")
+	return uri.LongURL, uri.Statistics, uri.CreatedAt.Format("02.01.2006 15:04:05")
 }

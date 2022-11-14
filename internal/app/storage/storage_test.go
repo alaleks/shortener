@@ -36,8 +36,8 @@ func TestAdd(t *testing.T) {
 
 			if el, ok := dataStorage.data[item.uid]; !ok {
 				t.Errorf("uid %s should be return true", item.uid)
-			} else if item.wantURL != el.longURL {
-				t.Errorf("uid %s should be return this URL %s but no %s", item.uid, item.wantURL, el.longURL)
+			} else if item.wantURL != el.LongURL {
+				t.Errorf("uid %s should be return this URL %s but no %s", item.uid, item.wantURL, el.LongURL)
 			}
 		})
 	}
@@ -111,8 +111,8 @@ func TestUpdate(t *testing.T) {
 			t.Parallel()
 
 			el := dataStorage.data[item.uid]
-			if el.statistics != item.wantStat {
-				t.Errorf("uid %s should be return stat %d but no %d", item.uid, item.wantStat, el.statistics)
+			if el.Statistics != item.wantStat {
+				t.Errorf("uid %s should be return stat %d but no %d", item.uid, item.wantStat, el.Statistics)
 			}
 		})
 	}

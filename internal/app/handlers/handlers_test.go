@@ -12,21 +12,12 @@ import (
 	"github.com/alaleks/shortener/internal/app/router"
 )
 
-func init() {
-	config.SetEnvApp("localhost:8080", "localhost:8080")
-}
-
-var (
-	appConf = config.New()
-	baseURL = appConf.GetBaseURL()
-)
-
 func TestShortenURL(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
 	appConf := config.New()
-	testHandler := handlers.New(5, appConf.GetBaseURL())
+	testHandler := handlers.New(5, appConf)
 	templateShortURL := "http://localhost:8080/#uids"
 
 	tests := []struct {
@@ -54,7 +45,7 @@ func TestShortenURL(t *testing.T) {
 			// создаем запрос, рекордер, хэндлер, запускаем сервер
 			w := httptest.NewRecorder()
 			h := http.HandlerFunc(testHandler.ShortenURL)
-			req := httptest.NewRequest(http.MethodPost, baseURL.String(), bytes.NewBuffer([]byte(item.url)))
+			req := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL().String(), bytes.NewBuffer([]byte(item.url)))
 			h.ServeHTTP(w, req)
 			res := w.Result()
 
@@ -80,7 +71,7 @@ func TestParseShortURL(t *testing.T) {
 
 	// данные для теста
 	appConf := config.New()
-	testHandler := handlers.New(5, appConf.GetBaseURL())
+	testHandler := handlers.New(5, appConf)
 	// генерируем uid
 	longURL := "https://github.com/alaleks/shortener"
 	// добавляем короткую ссылку
@@ -94,9 +85,9 @@ func TestParseShortURL(t *testing.T) {
 		shortURL string
 		longURL  string
 	}{
-		{name: "парсинг корректной короткой ссылки", code: 307, longURL: longURL, shortURL: baseURL.String() + uid},
-		{name: "парсинг некорректной короткой ссылки - 1", code: 405, longURL: "", shortURL: baseURL.String()},
-		{name: "парсинг некорректной короткой ссылки - 2", code: 400, longURL: "", shortURL: baseURL.String() + "badId"},
+		{name: "парсинг корректной короткой ссылки", code: 307, longURL: longURL, shortURL: appConf.GetBaseURL().String() + uid},
+		{name: "парсинг некорректной короткой ссылки - 1", code: 405, longURL: "", shortURL: appConf.GetBaseURL().String()},
+		{name: "парсинг некорректной короткой ссылки - 2", code: 400, longURL: "", shortURL: appConf.GetBaseURL().String() + "badId"},
 	}
 
 	// тестируем

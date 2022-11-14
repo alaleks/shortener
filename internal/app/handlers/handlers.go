@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/alaleks/shortener/internal/app/storage"
 	"github.com/gorilla/mux"
@@ -14,14 +15,7 @@ import (
 type Handlers struct {
 	DataStorage storage.Storage
 	SizeUID     int
-	baseURL     bytes.Buffer
-}
-
-type Handler interface {
-	ShortenURL(writer http.ResponseWriter, req *http.Request)
-	ParseShortURL(writer http.ResponseWriter, req *http.Request)
-	ShortenURLAPI(writer http.ResponseWriter, req *http.Request)
-	GetStatAPI(writer http.ResponseWriter, req *http.Request)
+	baseURL     *bytes.Buffer
 }
 
 var (
@@ -30,11 +24,19 @@ var (
 	ErrUIDInvalid = errors.New("short url is invalid")
 )
 
-func New(sizeShortUID int, baseURL bytes.Buffer) *Handlers {
-	return &Handlers{
+func New(sizeShortUID int, conf config.Configurator) *Handlers {
+
+	handlers := Handlers{
 		DataStorage: storage.New(),
-		SizeUID:     sizeShortUID, baseURL: baseURL,
+		SizeUID:     sizeShortUID,
+		baseURL:     conf.GetBaseURL(),
 	}
+
+	if conf.GetFileStoragePath().String() != "" {
+		handlers.DataStorage.Read(conf.GetFileStoragePath().String())
+	}
+
+	return &handlers
 }
 
 func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
@@ -64,7 +66,7 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 	writer.WriteHeader(http.StatusCreated)
 
 	// формируем короткую ссылку
-	shortURL := h.baseURL
+	shortURL := *h.baseURL
 	uid := h.DataStorage.Add(longURL, h.SizeUID)
 	shortURL.WriteString(uid)
 
