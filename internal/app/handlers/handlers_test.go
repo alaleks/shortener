@@ -18,7 +18,6 @@ func TestShortenURL(t *testing.T) {
 	// данные для теста
 	appConf := config.New()
 	testHandler := handlers.New(5, appConf)
-	templateShortURL := "http://localhost:8080/#uids"
 
 	tests := []struct {
 		name     string
@@ -53,6 +52,7 @@ func TestShortenURL(t *testing.T) {
 				defer res.Body.Close()
 			}
 			resBody, _ := io.ReadAll(res.Body)
+			templateShortURL := req.URL.Scheme + "://" + req.URL.Host + "/#uids"
 
 			// проверка возвращаемого кода ответа
 			if res.StatusCode != item.code {

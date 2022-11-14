@@ -15,8 +15,11 @@ type compressWriter struct {
 
 func (c *compressWriter) Write(b []byte) (int, error) {
 	n, err := c.Writer.Write(b)
+	if err != nil {
+		err = fmt.Errorf("failed writing to byte slice: %w", err)
+	}
 
-	return n, fmt.Errorf("failed writing to byte slice: %w", err)
+	return n, err
 }
 
 func CompressHandler(next http.Handler) http.Handler {

@@ -43,12 +43,6 @@ func (a *AppConfig) GetFileStoragePath() *bytes.Buffer {
 	return a.fileStoragePath
 }
 
-func SetEnvApp(serverAddr, baseURL, pathStorage string) {
-	os.Setenv("SERVER_ADDRESS", serverAddr)
-	os.Setenv("BASE_URL", baseURL)
-	os.Setenv("FILE_STORAGE_PATH", pathStorage)
-}
-
 func (a *AppConfig) defineOptionsApp() {
 	if servAddr, ok := os.LookupEnv("SERVER_ADDRESS"); ok {
 		a.serverAddress.Reset()
@@ -66,23 +60,34 @@ func (a *AppConfig) defineOptionsApp() {
 
 	// приоритет флагов будет выше, чем установленных переменных окружения
 	// если значения флагов не пустая строка, то они переопределят настройки.
-	servAddr := flag.String("a", "", "SERVER_ADDRESS")
-	baseURL := flag.String("b", "", "BASE_URL")
-	fileStoragePath := flag.String("f", "", "FILE_STORAGE_PATH")
+	var servAddr *string
+	if flag.Lookup("a") != nil {
+		servAddr = flag.String("a", "", "SERVER_ADDRESS")
+	}
+
+	var baseURL *string
+	if flag.Lookup("a") != nil {
+		baseURL = flag.String("b", "", "BASE_URL")
+	}
+
+	var fileStoragePath *string
+	if flag.Lookup("f") != nil {
+		fileStoragePath = flag.String("f", "", "FILE_STORAGE_PATH")
+	}
 
 	flag.Parse()
 
-	if *servAddr != "" {
+	if servAddr != nil {
 		a.serverAddress.Reset()
 		a.serverAddress.WriteString(*servAddr)
 	}
 
-	if *baseURL != "" {
+	if baseURL != nil {
 		a.baseURL.Reset()
 		a.baseURL.WriteString(*baseURL)
 	}
 
-	if *fileStoragePath != "" {
+	if fileStoragePath != nil {
 		a.fileStoragePath.WriteString(*fileStoragePath)
 	}
 }

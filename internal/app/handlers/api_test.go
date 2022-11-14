@@ -6,11 +6,14 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/handlers"
 	"github.com/alaleks/shortener/internal/app/router"
+	"github.com/alaleks/shortener/internal/app/serv/middleware"
 )
 
 func TestShortenURLAPI(t *testing.T) {
@@ -130,4 +133,100 @@ func TestGetStatAPI(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCheckCompress(t *testing.T) {
+	t.Parallel()
+	// данные для теста
+	appConf := config.New()
+	testHandler := handlers.New(5, appConf)
+
+	tests := []struct {
+		name            string
+		acceptEncoding  string
+		contentEncoding string
+	}{
+		{name: "проверка сжатия: gzip support", acceptEncoding: "gzip, deflate, br", contentEncoding: "gzip"},
+		{name: "проверка сжатия: gzip noupport", acceptEncoding: "", contentEncoding: ""},
+	}
+	data := `{"url":"https://github.com/alaleks/shortener"}`
+
+	for _, v := range tests {
+		item := v
+		t.Run(item.name, func(t *testing.T) {
+			t.Parallel()
+
+			// создаем запрос, рекордер, хэндлер, запускаем сервер
+			testRec := httptest.NewRecorder()
+			h := middleware.CompressHandler(http.HandlerFunc(testHandler.ShortenURLAPI))
+			req := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL().String(), bytes.NewBuffer([]byte(data)))
+			req.Header.Set("Accept-Encoding", item.acceptEncoding)
+			h.ServeHTTP(testRec, req)
+			res := testRec.Result()
+			if res != nil {
+				res.Body.Close()
+			}
+
+			if item.contentEncoding != res.Header.Get("Content-Encoding") {
+				t.Errorf("content-Encoding should be '%s' but received '%s'",
+					item.contentEncoding, res.Header.Get("Content-Encoding"))
+			}
+		})
+	}
+}
+
+func TestSetEnv(t *testing.T) {
+	t.Parallel()
+
+	// устанавливаем переменные окружения
+	os.Setenv("SERVER_ADDRESS", "localhost:9090")
+	os.Setenv("BASE_URL", "http://example.ru/")
+	os.Setenv("FILE_STORAGE_PATH", "./")
+
+	// настройки для теста
+	appConf := config.New()
+	testHandler := handlers.New(5, appConf)
+	data := `{"url":"https://github.com/alaleks/shortener"}`
+
+	// создаем запрос, рекордер, хэндлер, запускаем сервер
+	testRec := httptest.NewRecorder()
+	h := middleware.CompressHandler(http.HandlerFunc(testHandler.ShortenURLAPI))
+	req := httptest.NewRequest(http.MethodPost, appConf.GetServAddr(), bytes.NewBuffer([]byte(data)))
+	h.ServeHTTP(testRec, req)
+	res := testRec.Result()
+
+	if res != nil {
+		res.Body.Close()
+	}
+
+	resBody, _ := io.ReadAll(res.Body)
+
+	var dataFromRes struct {
+		Result string `json:"result"`
+	}
+
+	_ = json.Unmarshal(resBody, &dataFromRes)
+
+	if appConf.GetFileStoragePath().Len() != 0 {
+		testHandler.DataStorage.Write(appConf.GetFileStoragePath().String())
+	}
+
+	if req.URL.String() != "localhost:9090" {
+		t.Errorf("host should be localhost:9090 but no %s", req.URL.String())
+	}
+
+	if !strings.HasPrefix(dataFromRes.Result, "http://example.ru/") {
+		t.Errorf("short url should be contains http://example.ru/ but no %s", req.URL.String())
+	}
+
+	if _, err := os.Stat(appConf.GetFileStoragePath().String() + "filestorage.gob"); err != nil {
+		t.Errorf("failed to create file storage %s", err.Error())
+	}
+
+	os.Remove(appConf.GetFileStoragePath().String() + "filestorage.gob")
+
+	// сбрасываем переменные
+	os.Unsetenv("SERVER_ADDRESS")
+	os.Unsetenv("BASE_URL")
+	os.Unsetenv("FILE_STORAGE_PATH")
 }

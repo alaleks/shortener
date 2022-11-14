@@ -63,6 +63,7 @@ func Run(appServer *AppServer) error {
 func catchSignal(appServer *AppServer) {
 	termSignals := make(chan os.Signal, 1)
 	reloadSignals := make(chan os.Signal, 1)
+	fileStoragePath := appServer.conf.GetFileStoragePath()
 
 	signal.Notify(termSignals, syscall.SIGINT)
 
@@ -71,14 +72,14 @@ func catchSignal(appServer *AppServer) {
 	for {
 		select {
 		case <-termSignals:
-			if appServer.conf.GetFileStoragePath().String() != "" {
-				log.Fatal(appServer.handlers.DataStorage.Write(appServer.conf.GetFileStoragePath().String()))
+			if fileStoragePath.Len() != 0 {
+				log.Fatal(appServer.handlers.DataStorage.Write(fileStoragePath.String()))
 			}
 
 			log.Fatal(appServer.server.Shutdown(context.Background()))
 		case <-reloadSignals:
-			if appServer.conf.GetFileStoragePath().String() != "" {
-				log.Fatal(appServer.handlers.DataStorage.Write(appServer.conf.GetFileStoragePath().String()))
+			if fileStoragePath.Len() != 0 {
+				log.Fatal(appServer.handlers.DataStorage.Write(fileStoragePath.String()))
 			}
 		}
 	}
