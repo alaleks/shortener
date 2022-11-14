@@ -63,7 +63,7 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 
 		output.ErrMsg = output.Err.Error()
 		if err := json.NewEncoder(&buffer).Encode(output); err != nil {
-			http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
+			http.Error(writer, err.Error(), http.StatusBadRequest)
 
 			return
 		}
@@ -87,7 +87,7 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 	writer.WriteHeader(http.StatusCreated)
 
 	if err := json.NewEncoder(&buffer).Encode(output); err != nil {
-		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
+		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
 	}
@@ -100,7 +100,7 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 }
 
 func (h *Handlers) createShortURL(longURL string) string {
-	shortURL := h.baseURL
+	shortURL := *h.baseURL
 
 	uid := h.DataStorage.Add(longURL, h.SizeUID)
 
@@ -135,7 +135,7 @@ func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 	}
 
 	if err := json.NewEncoder(&buffer).Encode(stat); err != nil {
-		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
+		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
 	}

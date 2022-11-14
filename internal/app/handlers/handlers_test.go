@@ -85,9 +85,18 @@ func TestParseShortURL(t *testing.T) {
 		shortURL string
 		longURL  string
 	}{
-		{name: "парсинг корректной короткой ссылки", code: 307, longURL: longURL, shortURL: appConf.GetBaseURL().String() + uid},
-		{name: "парсинг некорректной короткой ссылки - 1", code: 405, longURL: "", shortURL: appConf.GetBaseURL().String()},
-		{name: "парсинг некорректной короткой ссылки - 2", code: 400, longURL: "", shortURL: appConf.GetBaseURL().String() + "badId"},
+		{
+			name: "парсинг корректной короткой ссылки", code: 307,
+			longURL: longURL, shortURL: appConf.GetBaseURL().String() + uid,
+		},
+		{
+			name: "парсинг некорректной короткой ссылки - 1", code: 405,
+			longURL: "", shortURL: appConf.GetBaseURL().String(),
+		},
+		{
+			name: "парсинг некорректной короткой ссылки - 2", code: 400,
+			longURL: "", shortURL: appConf.GetBaseURL().String() + "badId",
+		},
 	}
 
 	// тестируем

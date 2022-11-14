@@ -25,7 +25,6 @@ var (
 )
 
 func New(sizeShortUID int, conf config.Configurator) *Handlers {
-
 	handlers := Handlers{
 		DataStorage: storage.New(),
 		SizeUID:     sizeShortUID,
@@ -33,7 +32,7 @@ func New(sizeShortUID int, conf config.Configurator) *Handlers {
 	}
 
 	if conf.GetFileStoragePath().String() != "" {
-		handlers.DataStorage.Read(conf.GetFileStoragePath().String())
+		_ = handlers.DataStorage.Read(conf.GetFileStoragePath().String())
 	}
 
 	return &handlers
@@ -65,12 +64,7 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 
 	writer.WriteHeader(http.StatusCreated)
 
-	// формируем короткую ссылку
-	shortURL := *h.baseURL
-	uid := h.DataStorage.Add(longURL, h.SizeUID)
-	shortURL.WriteString(uid)
-
-	if _, err := writer.Write(shortURL.Bytes()); err != nil {
+	if _, err := writer.Write([]byte(h.createShortURL(longURL))); err != nil {
 		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
 
 		return

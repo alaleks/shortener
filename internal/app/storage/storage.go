@@ -9,12 +9,12 @@ import (
 )
 
 type Storage interface {
-	Procucer
+	Producer
 	Consumer
 	FileStorage
 }
 
-type Procucer interface {
+type Producer interface {
 	Add(longURL string, sizeUID int) string
 	Update(uid string) bool
 }
@@ -36,11 +36,10 @@ type Urls struct {
 }
 
 func New() *Urls {
-	urls := Urls{
+	return &Urls{
 		data: make(map[string]*URLElement),
 		mu:   sync.RWMutex{},
 	}
-	return &urls
 }
 
 func (u *Urls) Add(longURL string, sizeUID int) string {
