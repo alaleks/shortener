@@ -16,7 +16,7 @@ func TestShortenURL(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	appConf := config.New()
+	appConf := config.New(nil)
 	testHandler := handlers.New(5, appConf)
 
 	tests := []struct {
@@ -70,13 +70,10 @@ func TestParseShortURL(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	appConf := config.New()
+	appConf := config.New(nil)
 	testHandler := handlers.New(5, appConf)
-	// генерируем uid
 	longURL := "https://github.com/alaleks/shortener"
-	// добавляем короткую ссылку
 	uid := testHandler.DataStorage.Add(longURL, testHandler.SizeUID)
-	// создаем роутеры
 	routers := router.Create(testHandler)
 
 	tests := []struct {

@@ -38,8 +38,7 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 		output OutputShorten
 	)
 
-	_, err := io.Copy(&buffer, req.Body)
-	if err != nil {
+	if _, err := io.Copy(&buffer, req.Body); err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
@@ -47,28 +46,25 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 
 	writer.Header().Set("Content-Type", "application/json")
 
-	err = json.NewDecoder(&buffer).Decode(&input)
+	output.Err = json.NewDecoder(&buffer).Decode(&input)
 
 	switch {
-	case err != nil:
-		output.Err = err
+	case output.Err != nil:
 	case input.URL == "":
 		output.Err = ErrInvalidJSON
 	default:
 		output.Err = service.IsURL(input.URL)
 	}
 
-	if output.Err != nil {
-		buffer.Reset()
+	buffer.Reset()
 
+	if output.Err != nil {
 		output.ErrMsg = output.Err.Error()
 		if err := json.NewEncoder(&buffer).Encode(output); err != nil {
 			http.Error(writer, err.Error(), http.StatusBadRequest)
 
 			return
 		}
-
-		writer.WriteHeader(http.StatusResetContent)
 
 		if _, err := writer.Write(buffer.Bytes()); err != nil {
 			http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
@@ -78,8 +74,6 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 
 		return
 	}
-
-	buffer.Reset()
 
 	output.Success = true
 	output.Result = h.createShortURL(input.URL)

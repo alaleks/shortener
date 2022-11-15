@@ -31,7 +31,8 @@ type AppServer struct {
 
 func New(sizeUID int) *AppServer {
 	var (
-		appConf    config.Configurator = config.New()
+		options                        = config.Options{Env: true, Flag: true}
+		appConf    config.Configurator = config.New(&options)
 		appHandler                     = handlers.New(sizeUID, appConf)
 	)
 

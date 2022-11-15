@@ -14,27 +14,29 @@ import (
 	"github.com/alaleks/shortener/internal/app/handlers"
 	"github.com/alaleks/shortener/internal/app/router"
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
+	"github.com/alaleks/shortener/internal/app/storage"
 )
+
+const data = `{"url":"https://github.com/alaleks/shortener"}`
 
 func TestShortenURLAPI(t *testing.T) {
 	t.Parallel()
 	// данные для теста
-	appConf := config.New()
+	appConf := config.New(nil)
 	testHandler := handlers.New(5, appConf)
 
 	tests := []struct {
 		name    string
 		data    string
 		success bool
-		code    int
 	}{
-		{name: "url с https", data: `{"url":"https://github.com/alaleks/shortener"}`, success: true, code: 201},
-		{name: "url с http", data: `{"url":"http://github.com/alaleks/shortener"}`, success: true, code: 201},
-		{name: "url с www без протокола", data: `{"url":"www.github.com/alaleks/shortener"}`, success: true, code: 201},
-		{name: "url без протокола", data: `{"url":"github.com/alaleks/shortener"}`, success: false, code: 205},
-		{name: "url с ошибкой в протоколе", data: `{"url":"htps://github.com/alaleks/shortener"}`, success: false, code: 205},
-		{name: "невалидный json: имя", data: `{"url1":"htps://github.com/alaleks/shortener"}`, success: false, code: 205},
-		{name: "невалидный json: значение", data: `{"url":false}`, success: false, code: 205},
+		{name: "url с https", data: data, success: true},
+		{name: "url с http", data: `{"url":"http://github.com/alaleks/shortener"}`, success: true},
+		{name: "url с www без протокола", data: `{"url":"www.github.com/alaleks/shortener"}`, success: true},
+		{name: "url без протокола", data: `{"url":"github.com/alaleks/shortener"}`, success: false},
+		{name: "url с ошибкой в протоколе", data: `{"url":"htps://github.com/alaleks/shortener"}`, success: false},
+		{name: "невалидный json: имя", data: `{"url1":"htps://github.com/alaleks/shortener"}`, success: false},
+		{name: "невалидный json: значение", data: `{"url":false}`, success: false},
 	}
 
 	// тестируем
@@ -61,10 +63,6 @@ func TestShortenURLAPI(t *testing.T) {
 
 			_ = json.Unmarshal(resBody, &dataFromRes)
 
-			// проверка возвращаемого кода ответа
-			if res.StatusCode != item.code {
-				t.Errorf("status code should be %d but received %d", item.code, res.StatusCode)
-			}
 			// проверка значения success
 			if dataFromRes.Success != item.success {
 				t.Errorf("api should be return %v but received %v", item.success, dataFromRes.Success)
@@ -77,7 +75,7 @@ func TestGetStatAPI(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	appConf := config.New()
+	appConf := config.New(nil)
 	testHandler := handlers.New(5, appConf)
 	// генерируем uid
 	longURL1 := "https://github.com/alaleks/shortener"
@@ -135,10 +133,121 @@ func TestGetStatAPI(t *testing.T) {
 	}
 }
 
+func TestSetEnv(t *testing.T) {
+	// устанавливаем переменные окружения
+	t.Setenv("SERVER_ADDRESS", "localhost:9090")
+	t.Setenv("BASE_URL", "http://example.ru/")
+	t.Setenv("FILE_STORAGE_PATH", "./")
+
+	// настройки для теста
+	options := config.Options{Env: true, Flag: false}
+	appConf := config.New(&options)
+	testHandler := handlers.New(5, appConf)
+
+	// создаем запрос, рекордер, хэндлер, запускаем сервер
+	testRec := httptest.NewRecorder()
+	h := middleware.CompressHandler(http.HandlerFunc(testHandler.ShortenURLAPI))
+	req := httptest.NewRequest(http.MethodPost, appConf.GetServAddr(), bytes.NewBuffer([]byte(data)))
+	h.ServeHTTP(testRec, req)
+	res := testRec.Result()
+
+	if res != nil {
+		res.Body.Close()
+	}
+
+	resBody, _ := io.ReadAll(res.Body)
+
+	var dataFromRes struct {
+		Result string `json:"result"`
+	}
+
+	_ = json.Unmarshal(resBody, &dataFromRes)
+
+	if appConf.GetFileStoragePath().Len() != 0 {
+		_ = testHandler.DataStorage.Write(appConf.GetFileStoragePath().String())
+	}
+
+	if req.URL.String() != "localhost:9090" {
+		t.Errorf("host should be localhost:9090 but no %s", req.URL.String())
+	}
+
+	if !strings.HasPrefix(dataFromRes.Result, "http://example.ru/") {
+		t.Errorf("short url should be contains http://example.ru/ but no %s", req.URL.String())
+	}
+
+	if _, err := os.Stat(appConf.GetFileStoragePath().String() + "filestorage.gob"); err != nil {
+		t.Errorf("failed to create file storage %s", err.Error())
+	}
+
+	// сбрасываеи карту и читаем файл
+	testHandler.DataStorage = storage.New()
+	_ = testHandler.DataStorage.Read(appConf.GetFileStoragePath().String())
+
+	if _, ok := testHandler.DataStorage.GetURL(strings.Split(dataFromRes.Result, "/")[3]); !ok {
+		t.Errorf("failed to get data from file storage: %s", dataFromRes.Result)
+	}
+
+	// удаляем созданное файловое хранилище
+	_ = os.Remove(appConf.GetFileStoragePath().String() + "filestorage.gob")
+}
+
+func TestSetFlag(t *testing.T) {
+	// настройки для теста
+	options := config.Options{Env: true, Flag: true}
+	appConf := config.New(&options)
+	testHandler := handlers.New(5, appConf)
+
+	// создаем запрос, рекордер, хэндлер, запускаем сервер
+	testRec := httptest.NewRecorder()
+	h := middleware.CompressHandler(http.HandlerFunc(testHandler.ShortenURLAPI))
+	req := httptest.NewRequest(http.MethodPost, appConf.GetServAddr(), bytes.NewBuffer([]byte(data)))
+	h.ServeHTTP(testRec, req)
+	res := testRec.Result()
+
+	if res != nil {
+		res.Body.Close()
+	}
+
+	resBody, _ := io.ReadAll(res.Body)
+
+	var dataFromRes struct {
+		Result string `json:"result"`
+	}
+
+	_ = json.Unmarshal(resBody, &dataFromRes)
+
+	if appConf.GetFileStoragePath().Len() != 0 {
+		_ = testHandler.DataStorage.Write(appConf.GetFileStoragePath().String())
+	}
+
+	if req.URL.String() != "localhost:9093" {
+		t.Errorf("host should be localhost:9090 but no %s", req.URL.String())
+	}
+
+	if !strings.HasPrefix(dataFromRes.Result, "http://localhost:9093/") {
+		t.Errorf("short url should be contains http://localhost:9093/ but no %s", req.URL.String())
+	}
+
+	if _, err := os.Stat(appConf.GetFileStoragePath().String() + "filestorage.gob"); err != nil {
+		t.Errorf("failed to create file storage %s", err.Error())
+	}
+
+	// сбрасываеи карту и читаем файл
+	testHandler.DataStorage = storage.New()
+	_ = testHandler.DataStorage.Read(appConf.GetFileStoragePath().String())
+
+	if _, ok := testHandler.DataStorage.GetURL(strings.Split(dataFromRes.Result, "/")[3]); !ok {
+		t.Errorf("failed to get data from file storage: %s", dataFromRes.Result)
+	}
+
+	// удаляем созданное файловое хранилище
+	_ = os.Remove(appConf.GetFileStoragePath().String() + "filestorage.gob")
+}
+
 func TestCheckCompress(t *testing.T) {
 	t.Parallel()
 	// данные для теста
-	appConf := config.New()
+	appConf := config.New(nil)
 	testHandler := handlers.New(5, appConf)
 
 	tests := []struct {
@@ -149,7 +258,6 @@ func TestCheckCompress(t *testing.T) {
 		{name: "проверка сжатия: gzip support", acceptEncoding: "gzip, deflate, br", contentEncoding: "gzip"},
 		{name: "проверка сжатия: gzip noupport", acceptEncoding: "", contentEncoding: ""},
 	}
-	data := `{"url":"https://github.com/alaleks/shortener"}`
 
 	for _, v := range tests {
 		item := v
@@ -173,60 +281,4 @@ func TestCheckCompress(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestSetEnv(t *testing.T) {
-	t.Parallel()
-
-	// устанавливаем переменные окружения
-	os.Setenv("SERVER_ADDRESS", "localhost:9090")
-	os.Setenv("BASE_URL", "http://example.ru/")
-	os.Setenv("FILE_STORAGE_PATH", "./")
-
-	// настройки для теста
-	appConf := config.New()
-	testHandler := handlers.New(5, appConf)
-	data := `{"url":"https://github.com/alaleks/shortener"}`
-
-	// создаем запрос, рекордер, хэндлер, запускаем сервер
-	testRec := httptest.NewRecorder()
-	h := middleware.CompressHandler(http.HandlerFunc(testHandler.ShortenURLAPI))
-	req := httptest.NewRequest(http.MethodPost, appConf.GetServAddr(), bytes.NewBuffer([]byte(data)))
-	h.ServeHTTP(testRec, req)
-	res := testRec.Result()
-
-	if res != nil {
-		res.Body.Close()
-	}
-
-	resBody, _ := io.ReadAll(res.Body)
-
-	var dataFromRes struct {
-		Result string `json:"result"`
-	}
-
-	_ = json.Unmarshal(resBody, &dataFromRes)
-
-	if appConf.GetFileStoragePath().Len() != 0 {
-		testHandler.DataStorage.Write(appConf.GetFileStoragePath().String())
-	}
-
-	if req.URL.String() != "localhost:9090" {
-		t.Errorf("host should be localhost:9090 but no %s", req.URL.String())
-	}
-
-	if !strings.HasPrefix(dataFromRes.Result, "http://example.ru/") {
-		t.Errorf("short url should be contains http://example.ru/ but no %s", req.URL.String())
-	}
-
-	if _, err := os.Stat(appConf.GetFileStoragePath().String() + "filestorage.gob"); err != nil {
-		t.Errorf("failed to create file storage %s", err.Error())
-	}
-
-	os.Remove(appConf.GetFileStoragePath().String() + "filestorage.gob")
-
-	// сбрасываем переменные
-	os.Unsetenv("SERVER_ADDRESS")
-	os.Unsetenv("BASE_URL")
-	os.Unsetenv("FILE_STORAGE_PATH")
 }
