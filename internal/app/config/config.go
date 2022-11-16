@@ -120,6 +120,7 @@ func parseFlags() (*confFlags, error) {
 		confFlags.b = flags.String("b", "http://localhost:9093/", "BASE_URL")
 		confFlags.f = flags.String("f", "../../../cmd/shortener", "FILE_STORAGE_PATH")
 		flags.String("test.paniconexit0", "", "TEST_PANIC_FLAG")
+		flags.String("test.testlogfile", "", "TEST_LOG_FILE")
 	}
 
 	err := flags.Parse(args[1:])

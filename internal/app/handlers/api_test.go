@@ -221,7 +221,7 @@ func TestSetFlag(t *testing.T) {
 	}
 
 	if req.URL.String() != "localhost:9093" {
-		t.Errorf("host should be localhost:9090 but no %s", req.URL.String())
+		t.Errorf("host should be localhost:9093 but no %s", req.URL.String())
 	}
 
 	if !strings.HasPrefix(dataFromRes.Result, "http://localhost:9093/") {
