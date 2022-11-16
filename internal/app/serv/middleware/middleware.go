@@ -3,16 +3,10 @@ package middleware
 import (
 	"bytes"
 	"compress/gzip"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
-)
-
-var (
-	ErrWriteGz  = errors.New("failed write gzip")
-	ErrCloserGz = errors.New("failed readerCloserGzip")
 )
 
 type (
@@ -46,7 +40,7 @@ type writerGzip struct {
 func (w writerGzip) Write(b []byte) (int, error) {
 	n, err := w.Writer.Write(b)
 	if err != nil {
-		err = fmt.Errorf("%w: %w", ErrWriteGz, err)
+		err = fmt.Errorf("failed write gzip: %w", err)
 	}
 
 	return n, err
@@ -60,7 +54,7 @@ type readerCloserGzip struct {
 func (r readerCloserGzip) Close() error {
 	err := r.Closer.Close()
 	if err != nil {
-		err = fmt.Errorf("%w: %w", ErrCloserGz, err)
+		err = fmt.Errorf("failed readerCloserGzip: %w", err)
 	}
 
 	return err
