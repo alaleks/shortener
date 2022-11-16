@@ -244,7 +244,7 @@ func TestSetFlag(t *testing.T) {
 	_ = os.Remove(appConf.GetFileStoragePath().String() + "filestorage.gob")
 }
 
-func TestCheckCompress(t *testing.T) {
+func TestCompress(t *testing.T) {
 	t.Parallel()
 	// данные для теста
 	appConf := config.New(nil)
@@ -266,8 +266,10 @@ func TestCheckCompress(t *testing.T) {
 
 			// создаем запрос, рекордер, хэндлер, запускаем сервер
 			testRec := httptest.NewRecorder()
-			h := middleware.New(middleware.Compress).Configure(http.HandlerFunc(testHandler.ShortenURLAPI))
+			h := middleware.New(middleware.Compress, middleware.DeCompress).
+				Configure(http.HandlerFunc(testHandler.ShortenURLAPI))
 			req := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL().String(), bytes.NewBuffer([]byte(data)))
+			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Accept-Encoding", item.acceptEncoding)
 			h.ServeHTTP(testRec, req)
 			res := testRec.Result()

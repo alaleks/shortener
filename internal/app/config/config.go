@@ -116,9 +116,9 @@ func parseFlags() (*confFlags, error) {
 		confFlags.b = flags.String("b", "", "BASE_URL")
 		confFlags.f = flags.String("f", "", "FILE_STORAGE_PATH")
 	case true:
-		confFlags.a = flags.String("a", "", "SERVER_ADDRESS")
-		confFlags.b = flags.String("b", "", "BASE_URL")
-		confFlags.f = flags.String("f", "", "FILE_STORAGE_PATH")
+		confFlags.a = flags.String("a", "localhost:9093", "SERVER_ADDRESS")
+		confFlags.b = flags.String("b", "http://localhost:9093/", "BASE_URL")
+		confFlags.f = flags.String("f", "../../../cmd/shortener", "FILE_STORAGE_PATH")
 		flags.String("test.paniconexit0", "", "TEST_PANIC_FLAG")
 	}
 
