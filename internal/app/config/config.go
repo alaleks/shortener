@@ -122,15 +122,6 @@ func parseFlags() (*confFlags, error) {
 		flags.String("test.paniconexit0", "", "TEST_PANIC_FLAG")
 	}
 
-	confFlags.a = flags.String("a", "", "SERVER_ADDRESS")
-	confFlags.b = flags.String("b", "", "BASE_URL")
-	confFlags.f = flags.String("f", "", "FILE_STORAGE_PATH")
-	flags.String("test.paniconexit0", "", "TEST_PANIC_FLAG")
-
-	if strings.HasSuffix(args[0], ".test") {
-		flags.String("test.paniconexit0", "", "TEST_PANIC_FLAG")
-	}
-
 	err := flags.Parse(args[1:])
 	if err != nil {
 		err = fmt.Errorf("failed parse flags %w", flags.Parse(args[1:]))

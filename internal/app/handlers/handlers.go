@@ -32,21 +32,27 @@ func New(sizeShortUID int, conf config.Configurator) *Handlers {
 	}
 
 	if conf.GetFileStoragePath().String() != "" {
-		_ = handlers.DataStorage.Read(conf.GetFileStoragePath().String())
+		err := handlers.DataStorage.Read(conf.GetFileStoragePath().String())
+		if err != nil {
+			return &handlers
+		}
 	}
 
 	return &handlers
 }
 
 func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
+	var buffer bytes.Buffer
+
+	defer buffer.Reset()
+
+	if _, err := io.Copy(&buffer, req.Body); err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	longURL := string(bytes.TrimSpace(body))
+	longURL := string(bytes.TrimSpace(buffer.Bytes()))
 
 	if longURL == "" {
 		http.Error(writer, ErrEmptyURL.Error(), http.StatusBadRequest)
@@ -54,8 +60,7 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err = service.IsURL(longURL)
-
+	err := service.IsURL(longURL)
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
@@ -64,7 +69,12 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 
 	writer.WriteHeader(http.StatusCreated)
 
-	if _, err := writer.Write([]byte(h.createShortURL(longURL))); err != nil {
+	// формируем короткую ссылку
+	shortURL := *h.baseURL
+	uid := h.DataStorage.Add(longURL, h.SizeUID)
+	shortURL.WriteString(uid)
+
+	if _, err := writer.Write(shortURL.Bytes()); err != nil {
 		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
 
 		return

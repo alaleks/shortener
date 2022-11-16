@@ -6,6 +6,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"os"
+	"strings"
 )
 
 type FileStorage interface {
@@ -14,7 +15,11 @@ type FileStorage interface {
 }
 
 func (u *Urls) Write(filepath string) error {
-	file, err := os.Create(filepath + "filestorage.gob")
+	if !strings.HasSuffix(filepath, ".gob") {
+		filepath += "filestorage.gob"
+	}
+
+	file, err := os.Create(filepath)
 
 	if file != nil {
 		defer file.Close()
@@ -37,11 +42,21 @@ func (u *Urls) Write(filepath string) error {
 		return fmt.Errorf("failed write data to buffer: %w", err)
 	}
 
-	return fmt.Errorf("failed to dump data to file: %w", writer.Flush())
+	err = writer.Flush()
+
+	if err != nil {
+		return fmt.Errorf("failed to dump data to file: %w", writer.Flush())
+	}
+
+	return nil
 }
 
 func (u *Urls) Read(filepath string) error {
-	file, err := os.Open(filepath + "filestorage.gob")
+	if !strings.HasSuffix(filepath, ".gob") {
+		filepath += "filestorage.gob"
+	}
+
+	file, err := os.Open(filepath)
 
 	if file != nil {
 		defer file.Close()

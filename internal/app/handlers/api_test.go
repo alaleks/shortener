@@ -146,7 +146,7 @@ func TestSetEnv(t *testing.T) {
 
 	// создаем запрос, рекордер, хэндлер, запускаем сервер
 	testRec := httptest.NewRecorder()
-	h := middleware.CompressHandler(http.HandlerFunc(testHandler.ShortenURLAPI))
+	h := http.HandlerFunc(testHandler.ShortenURLAPI)
 	req := httptest.NewRequest(http.MethodPost, appConf.GetServAddr(), bytes.NewBuffer([]byte(data)))
 	h.ServeHTTP(testRec, req)
 	res := testRec.Result()
@@ -199,7 +199,7 @@ func TestSetFlag(t *testing.T) {
 
 	// создаем запрос, рекордер, хэндлер, запускаем сервер
 	testRec := httptest.NewRecorder()
-	h := middleware.CompressHandler(http.HandlerFunc(testHandler.ShortenURLAPI))
+	h := http.HandlerFunc(testHandler.ShortenURLAPI)
 	req := httptest.NewRequest(http.MethodPost, appConf.GetServAddr(), bytes.NewBuffer([]byte(data)))
 	h.ServeHTTP(testRec, req)
 	res := testRec.Result()
@@ -266,7 +266,7 @@ func TestCheckCompress(t *testing.T) {
 
 			// создаем запрос, рекордер, хэндлер, запускаем сервер
 			testRec := httptest.NewRecorder()
-			h := middleware.CompressHandler(http.HandlerFunc(testHandler.ShortenURLAPI))
+			h := middleware.New(middleware.Compress).Configure(http.HandlerFunc(testHandler.ShortenURLAPI))
 			req := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL().String(), bytes.NewBuffer([]byte(data)))
 			req.Header.Set("Accept-Encoding", item.acceptEncoding)
 			h.ServeHTTP(testRec, req)

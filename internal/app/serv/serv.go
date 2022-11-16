@@ -37,7 +37,7 @@ func New(sizeUID int) *AppServer {
 	)
 
 	server := &http.Server{
-		Handler:           middleware.CompressHandler(router.Create(appHandler)),
+		Handler:           middleware.New(middleware.Compress, middleware.DeCompress).Configure(router.Create(appHandler)),
 		ReadTimeout:       defaultTimeout,
 		WriteTimeout:      defaultTimeout,
 		IdleTimeout:       defaultIdleTimeout,
@@ -74,13 +74,15 @@ func catchSignal(appServer *AppServer) {
 		select {
 		case <-termSignals:
 			if fileStoragePath.Len() != 0 {
-				log.Fatal(appServer.handlers.DataStorage.Write(fileStoragePath.String()))
+				if err := appServer.handlers.DataStorage.Write(fileStoragePath.String()); err != nil {
+					log.Fatal(err)
+				}
 			}
 
 			log.Fatal(appServer.server.Shutdown(context.Background()))
 		case <-reloadSignals:
-			if fileStoragePath.Len() != 0 {
-				log.Fatal(appServer.handlers.DataStorage.Write(fileStoragePath.String()))
+			if err := appServer.handlers.DataStorage.Write(fileStoragePath.String()); err != nil {
+				log.Fatal(err)
 			}
 		}
 	}

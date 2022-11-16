@@ -25,8 +25,7 @@ type InputShorten struct {
 type OutputShorten struct {
 	Success bool   `json:"success"`
 	Result  string `json:"result,omitempty"`
-	Err     error  `json:"-"`
-	ErrMsg  string `json:"error,omitempty"`
+	Err     string `json:"error,omitempty"`
 }
 
 var ErrInvalidJSON = errors.New("json is invalid, please check what you send. Should be: {'url':'https://example.ru'}")
@@ -38,6 +37,8 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 		output OutputShorten
 	)
 
+	defer buffer.Reset()
+
 	if _, err := io.Copy(&buffer, req.Body); err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
@@ -46,39 +47,28 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 
 	writer.Header().Set("Content-Type", "application/json")
 
-	output.Err = json.NewDecoder(&buffer).Decode(&input)
+	err := json.NewDecoder(&buffer).Decode(&input)
 
 	switch {
-	case output.Err != nil:
+	case err != nil:
+		output.Err = err.Error()
 	case input.URL == "":
-		output.Err = ErrInvalidJSON
+		output.Err = ErrInvalidJSON.Error()
 	default:
-		output.Err = service.IsURL(input.URL)
+		err = service.IsURL(input.URL)
+		if err != nil {
+			output.Err = err.Error()
+		}
 	}
 
 	buffer.Reset()
 
-	if output.Err != nil {
-		output.ErrMsg = output.Err.Error()
-		if err := json.NewEncoder(&buffer).Encode(output); err != nil {
-			http.Error(writer, err.Error(), http.StatusBadRequest)
+	if output.Err == "" {
+		output.Success = true
+		output.Result = h.createShortURL(input.URL)
 
-			return
-		}
-
-		if _, err := writer.Write(buffer.Bytes()); err != nil {
-			http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
-
-			return
-		}
-
-		return
+		writer.WriteHeader(http.StatusCreated)
 	}
-
-	output.Success = true
-	output.Result = h.createShortURL(input.URL)
-
-	writer.WriteHeader(http.StatusCreated)
 
 	if err := json.NewEncoder(&buffer).Encode(output); err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
