@@ -64,7 +64,6 @@ func (u *Urls) Read(filepath string) error {
 }
 
 func correctorFilename(filepath string) string {
-
 	if strings.HasSuffix(filepath, "/") {
 		filepath += "storage"
 	}
