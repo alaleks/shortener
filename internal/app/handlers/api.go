@@ -45,8 +45,6 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	writer.Header().Set("Content-Type", "application/json")
-
 	err := json.NewDecoder(&buffer).Decode(&input)
 
 	switch {
@@ -61,6 +59,7 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 		}
 	}
 
+	writer.Header().Set("Content-Type", "application/json")
 	buffer.Reset()
 
 	if output.Err == "" {

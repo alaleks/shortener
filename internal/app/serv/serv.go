@@ -36,8 +36,13 @@ func New(sizeUID int) *AppServer {
 		appHandler                     = handlers.New(sizeUID, appConf)
 	)
 
+	// конфигурируем опции согласно переменных окружения и флагов
+	appConf.DefineOptionsEnv()
+	appConf.DefineOptionsFlags(os.Args)
+
 	server := &http.Server{
-		Handler:           middleware.New(middleware.Compress, middleware.DeCompress).Configure(router.Create(appHandler)),
+		Handler: middleware.New(middleware.Compress, middleware.DeCompress).
+			Configure(router.Create(appHandler)),
 		ReadTimeout:       defaultTimeout,
 		WriteTimeout:      defaultTimeout,
 		IdleTimeout:       defaultIdleTimeout,

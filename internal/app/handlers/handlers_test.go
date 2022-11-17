@@ -17,6 +17,7 @@ func TestShortenURL(t *testing.T) {
 
 	// данные для теста
 	appConf := config.New(nil)
+	appConf.DefineOptionsFlags([]string{"TestFlags", "-a", "", "-b", "", "-f", ""})
 	testHandler := handlers.New(5, appConf)
 
 	tests := []struct {
@@ -71,6 +72,7 @@ func TestParseShortURL(t *testing.T) {
 
 	// данные для теста
 	appConf := config.New(nil)
+	appConf.DefineOptionsFlags([]string{"TestFlags", "-a", "", "-b", "", "-f", ""})
 	testHandler := handlers.New(5, appConf)
 	longURL := "https://github.com/alaleks/shortener"
 	uid := testHandler.DataStorage.Add(longURL, testHandler.SizeUID)

@@ -23,6 +23,7 @@ func TestShortenURLAPI(t *testing.T) {
 	t.Parallel()
 	// данные для теста
 	appConf := config.New(nil)
+	appConf.DefineOptionsFlags([]string{"TestFlags", "-a", "", "-b", "", "-f", ""})
 	testHandler := handlers.New(5, appConf)
 
 	tests := []struct {
@@ -76,6 +77,7 @@ func TestGetStatAPI(t *testing.T) {
 
 	// данные для теста
 	appConf := config.New(nil)
+	appConf.DefineOptionsFlags([]string{"TestFlags", "-a", "", "-b", "", "-f", ""})
 	testHandler := handlers.New(5, appConf)
 	// генерируем uid
 	longURL1 := "https://github.com/alaleks/shortener"
@@ -137,11 +139,12 @@ func TestSetEnv(t *testing.T) {
 	// устанавливаем переменные окружения
 	t.Setenv("SERVER_ADDRESS", "localhost:9090")
 	t.Setenv("BASE_URL", "http://example.ru/")
-	t.Setenv("FILE_STORAGE_PATH", "./")
+	t.Setenv("FILE_STORAGE_PATH", "./storage")
 
 	// настройки для теста
 	options := config.Options{Env: true, Flag: false}
 	appConf := config.New(&options)
+	appConf.DefineOptionsEnv()
 	testHandler := handlers.New(5, appConf)
 
 	// создаем запрос, рекордер, хэндлер, запускаем сервер
@@ -175,7 +178,7 @@ func TestSetEnv(t *testing.T) {
 		t.Errorf("short url should be contains http://example.ru/ but no %s", req.URL.String())
 	}
 
-	if _, err := os.Stat(appConf.GetFileStoragePath().String() + "filestorage.gob"); err != nil {
+	if _, err := os.Stat(appConf.GetFileStoragePath().String()); err != nil {
 		t.Errorf("failed to create file storage %s", err.Error())
 	}
 
@@ -188,13 +191,20 @@ func TestSetEnv(t *testing.T) {
 	}
 
 	// удаляем созданное файловое хранилище
-	_ = os.Remove(appConf.GetFileStoragePath().String() + "filestorage.gob")
+	_ = os.Remove(appConf.GetFileStoragePath().String())
 }
 
 func TestSetFlag(t *testing.T) {
+	t.Parallel()
+
 	// настройки для теста
 	options := config.Options{Env: true, Flag: true}
 	appConf := config.New(&options)
+	argsTest := []string{
+		"TestFlags", "-a", "localhost:9093", "-b",
+		"http://localhost:9093/", "-f", "./storage",
+	}
+	appConf.DefineOptionsFlags(argsTest)
 	testHandler := handlers.New(5, appConf)
 
 	// создаем запрос, рекордер, хэндлер, запускаем сервер
@@ -228,7 +238,7 @@ func TestSetFlag(t *testing.T) {
 		t.Errorf("short url should be contains http://localhost:9093/ but no %s", req.URL.String())
 	}
 
-	if _, err := os.Stat(appConf.GetFileStoragePath().String() + "filestorage.gob"); err != nil {
+	if _, err := os.Stat(appConf.GetFileStoragePath().String()); err != nil {
 		t.Errorf("failed to create file storage %s", err.Error())
 	}
 
@@ -241,13 +251,14 @@ func TestSetFlag(t *testing.T) {
 	}
 
 	// удаляем созданное файловое хранилище
-	_ = os.Remove(appConf.GetFileStoragePath().String() + "filestorage.gob")
+	_ = os.Remove(appConf.GetFileStoragePath().String())
 }
 
 func TestCompress(t *testing.T) {
 	t.Parallel()
 	// данные для теста
 	appConf := config.New(nil)
+	appConf.DefineOptionsFlags([]string{"TestFlags", "-a", "", "-b", "", "-f", ""})
 	testHandler := handlers.New(5, appConf)
 
 	tests := []struct {

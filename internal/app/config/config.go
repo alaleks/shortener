@@ -5,13 +5,22 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 )
 
 type Configurator interface {
+	Recipient
+	Tuner
+}
+
+type Recipient interface {
 	GetServAddr() string
 	GetBaseURL() *bytes.Buffer
 	GetFileStoragePath() *bytes.Buffer
+}
+
+type Tuner interface {
+	DefineOptionsEnv()
+	DefineOptionsFlags([]string)
 }
 
 type AppConfig struct {
@@ -32,27 +41,11 @@ type confFlags struct {
 }
 
 func New(opt *Options) *AppConfig {
-	appConf := AppConfig{
+	return &AppConfig{
 		serverAddress:   bytes.NewBuffer([]byte("localhost:8080")),
 		baseURL:         bytes.NewBuffer([]byte{}),
 		fileStoragePath: bytes.NewBuffer([]byte{}),
 	}
-
-	if opt != nil {
-		if opt.Env {
-			appConf.defineOptionsEnv()
-		}
-
-		if opt.Flag {
-			// приоритет флагов будет выше, чем установленных переменных окружения
-			// если значения флагов не пустая строка, то они переопределят настройки.
-			appConf.defineOptionsFlags()
-		}
-	}
-
-	appConf.checkOptions()
-
-	return &appConf
 }
 
 func (a *AppConfig) GetServAddr() string {
@@ -67,7 +60,7 @@ func (a *AppConfig) GetFileStoragePath() *bytes.Buffer {
 	return a.fileStoragePath
 }
 
-func (a *AppConfig) defineOptionsEnv() {
+func (a *AppConfig) DefineOptionsEnv() {
 	if servAddr, ok := os.LookupEnv("SERVER_ADDRESS"); ok {
 		a.serverAddress.Reset()
 		a.serverAddress.WriteString(servAddr)
@@ -81,10 +74,13 @@ func (a *AppConfig) defineOptionsEnv() {
 	if fileStoragePath, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok {
 		a.fileStoragePath.WriteString(fileStoragePath)
 	}
+
+	// проверяем корректность опций
+	a.checkOptions()
 }
 
-func (a *AppConfig) defineOptionsFlags() {
-	confFlags, err := parseFlags()
+func (a *AppConfig) DefineOptionsFlags(args []string) {
+	confFlags, err := parseFlags(args)
 
 	if err == nil {
 		if *confFlags.a != "" {
@@ -101,27 +97,19 @@ func (a *AppConfig) defineOptionsFlags() {
 			a.fileStoragePath.WriteString(*confFlags.f)
 		}
 	}
+
+	// проверяем корректность опций
+	a.checkOptions()
 }
 
-func parseFlags() (*confFlags, error) {
-	args := os.Args
-
+func parseFlags(args []string) (*confFlags, error) {
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 
 	var confFlags confFlags
 
-	switch strings.HasSuffix(args[0], ".test") {
-	case false:
-		confFlags.a = flags.String("a", "", "SERVER_ADDRESS")
-		confFlags.b = flags.String("b", "", "BASE_URL")
-		confFlags.f = flags.String("f", "", "FILE_STORAGE_PATH")
-	case true:
-		confFlags.a = flags.String("a", "localhost:9093", "SERVER_ADDRESS")
-		confFlags.b = flags.String("b", "http://localhost:9093/", "BASE_URL")
-		confFlags.f = flags.String("f", "../../../cmd/shortener", "FILE_STORAGE_PATH")
-		flags.String("test.paniconexit0", "", "TEST_PANIC_FLAG")
-		flags.String("test.testlogfile", "", "TEST_LOG_FILE")
-	}
+	confFlags.a = flags.String("a", "", "SERVER_ADDRESS")
+	confFlags.b = flags.String("b", "", "BASE_URL")
+	confFlags.f = flags.String("f", "", "FILE_STORAGE_PATH")
 
 	err := flags.Parse(args[1:])
 	if err != nil {
@@ -141,9 +129,9 @@ func (a *AppConfig) checkOptions() {
 	// проверка корректности base url - должен быть протокол и слэш в конце
 	switch a.baseURL.Len() {
 	case 0:
-		a.baseURL.WriteString("http://")
+		a.baseURL.Write([]byte{104, 116, 116, 112, 58, 47, 47})
 		a.baseURL.Write(a.serverAddress.Bytes())
-		a.baseURL.WriteString("/")
+		a.baseURL.Write([]byte{47})
 	default:
 		if !bytes.HasPrefix(a.baseURL.Bytes(), []byte{104, 116, 116, 112}) {
 			a.baseURL.Write(append([]byte{104, 116, 116, 112, 58, 47, 47}, a.baseURL.Next(a.baseURL.Len())...))

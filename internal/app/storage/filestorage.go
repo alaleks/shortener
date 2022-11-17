@@ -15,11 +15,7 @@ type FileStorage interface {
 }
 
 func (u *Urls) Write(filepath string) error {
-	if !strings.HasSuffix(filepath, ".gob") {
-		filepath += "filestorage.gob"
-	}
-
-	file, err := os.Create(filepath)
+	file, err := os.Create(correctorFilename(filepath))
 
 	if file != nil {
 		defer file.Close()
@@ -52,11 +48,7 @@ func (u *Urls) Write(filepath string) error {
 }
 
 func (u *Urls) Read(filepath string) error {
-	if !strings.HasSuffix(filepath, ".gob") {
-		filepath += "filestorage.gob"
-	}
-
-	file, err := os.Open(filepath)
+	file, err := os.Open(correctorFilename(filepath))
 
 	if file != nil {
 		defer file.Close()
@@ -69,4 +61,17 @@ func (u *Urls) Read(filepath string) error {
 	decoder := gob.NewDecoder(file)
 
 	return fmt.Errorf("failed decode data: %w", decoder.Decode(&u.data))
+}
+
+func correctorFilename(filepath string) string {
+
+	if strings.HasSuffix(filepath, "/") {
+		filepath += "storage"
+	}
+
+	if stat, err := os.Stat(filepath); err == nil && stat.IsDir() {
+		filepath += "/storage"
+	}
+
+	return filepath
 }
