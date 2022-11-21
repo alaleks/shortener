@@ -1,10 +1,10 @@
 package config
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 )
 
 type Configurator interface {
@@ -14,8 +14,8 @@ type Configurator interface {
 
 type Recipient interface {
 	GetServAddr() string
-	GetBaseURL() *bytes.Buffer
-	GetFileStoragePath() *bytes.Buffer
+	GetBaseURL() string
+	GetFileStoragePath() string
 }
 
 type Tuner interface {
@@ -24,9 +24,9 @@ type Tuner interface {
 }
 
 type AppConfig struct {
-	serverAddress   *bytes.Buffer
-	baseURL         *bytes.Buffer
-	fileStoragePath *bytes.Buffer
+	serverAddress   string
+	baseURL         string
+	fileStoragePath string
 }
 
 type Options struct {
@@ -40,39 +40,37 @@ type confFlags struct {
 	f *string
 }
 
-func New(opt *Options) *AppConfig {
+func New(opt Options) *AppConfig {
 	return &AppConfig{
-		serverAddress:   bytes.NewBuffer([]byte("localhost:8080")),
-		baseURL:         bytes.NewBuffer([]byte{}),
-		fileStoragePath: bytes.NewBuffer([]byte{}),
+		serverAddress:   "localhost:8080",
+		baseURL:         "",
+		fileStoragePath: "",
 	}
 }
 
 func (a *AppConfig) GetServAddr() string {
-	return a.serverAddress.String()
+	return a.serverAddress
 }
 
-func (a *AppConfig) GetBaseURL() *bytes.Buffer {
+func (a *AppConfig) GetBaseURL() string {
 	return a.baseURL
 }
 
-func (a *AppConfig) GetFileStoragePath() *bytes.Buffer {
+func (a *AppConfig) GetFileStoragePath() string {
 	return a.fileStoragePath
 }
 
 func (a *AppConfig) DefineOptionsEnv() {
 	if servAddr, ok := os.LookupEnv("SERVER_ADDRESS"); ok {
-		a.serverAddress.Reset()
-		a.serverAddress.WriteString(servAddr)
+		a.serverAddress = servAddr
 	}
 
 	if baseURL, ok := os.LookupEnv("BASE_URL"); ok {
-		a.baseURL.Reset()
-		a.baseURL.WriteString(baseURL)
+		a.baseURL = baseURL
 	}
 
 	if fileStoragePath, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok {
-		a.fileStoragePath.WriteString(fileStoragePath)
+		a.fileStoragePath = fileStoragePath
 	}
 
 	// проверяем корректность опций
@@ -84,17 +82,15 @@ func (a *AppConfig) DefineOptionsFlags(args []string) {
 
 	if err == nil {
 		if *confFlags.a != "" {
-			a.serverAddress.Reset()
-			a.serverAddress.WriteString(*confFlags.a)
+			a.serverAddress = *confFlags.a
 		}
 
 		if *confFlags.b != "" {
-			a.baseURL.Reset()
-			a.baseURL.WriteString(*confFlags.b)
+			a.baseURL = *confFlags.b
 		}
 
 		if *confFlags.f != "" {
-			a.fileStoragePath.WriteString(*confFlags.f)
+			a.fileStoragePath = *confFlags.f
 		}
 	}
 
@@ -120,25 +116,26 @@ func parseFlags(args []string) (*confFlags, error) {
 }
 
 func (a *AppConfig) checkOptions() {
+	httpPrefix := "http://"
+
 	// проверка адреса сервера, должен быть указан порт
-	if !bytes.Contains(a.serverAddress.Bytes(), []byte{58}) {
-		// если порт не указан, то ставим 8080
-		a.serverAddress.WriteString(":8080")
+	if !strings.Contains(a.serverAddress, ":") {
+		// если порт не указан, то добавляем 8080
+		a.serverAddress += ":8080"
 	}
 
 	// проверка корректности base url - должен быть протокол и слэш в конце
-	switch a.baseURL.Len() {
+	switch len(a.baseURL) {
 	case 0:
-		a.baseURL.Write([]byte{104, 116, 116, 112, 58, 47, 47})
-		a.baseURL.Write(a.serverAddress.Bytes())
-		a.baseURL.Write([]byte{47})
+		a.baseURL = httpPrefix + a.serverAddress + "/"
 	default:
-		if !bytes.HasPrefix(a.baseURL.Bytes(), []byte{104, 116, 116, 112}) {
-			a.baseURL.Write(append([]byte{104, 116, 116, 112, 58, 47, 47}, a.baseURL.Next(a.baseURL.Len())...))
+		if !strings.HasPrefix(a.baseURL, "http") {
+			uri := a.baseURL
+			a.baseURL = httpPrefix + uri
 		}
 
-		if !bytes.HasSuffix(a.baseURL.Bytes(), []byte{47}) {
-			a.baseURL.Write([]byte{47})
+		if !strings.HasSuffix(a.baseURL, "/") {
+			a.baseURL += "/"
 		}
 	}
 }

@@ -2,7 +2,6 @@ package serv
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -32,7 +31,7 @@ type AppServer struct {
 func New(sizeUID int) *AppServer {
 	var (
 		options                        = config.Options{Env: true, Flag: true}
-		appConf    config.Configurator = config.New(&options)
+		appConf    config.Configurator = config.New(options)
 		appHandler                     = handlers.New(sizeUID, appConf)
 	)
 
@@ -63,7 +62,7 @@ func New(sizeUID int) *AppServer {
 func Run(appServer *AppServer) error {
 	go catchSignal(appServer)
 
-	return fmt.Errorf("failed run server: %w", appServer.server.ListenAndServe())
+	return appServer.server.ListenAndServe()
 }
 
 func catchSignal(appServer *AppServer) {
@@ -71,22 +70,26 @@ func catchSignal(appServer *AppServer) {
 	reloadSignals := make(chan os.Signal, 1)
 	fileStoragePath := appServer.conf.GetFileStoragePath()
 
-	signal.Notify(termSignals, syscall.SIGINT)
+	signal.Notify(termSignals,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
 
 	signal.Notify(reloadSignals, syscall.SIGUSR1)
 
 	for {
 		select {
 		case <-termSignals:
-			if fileStoragePath.Len() != 0 {
-				if err := appServer.handlers.DataStorage.Write(fileStoragePath.String()); err != nil {
+			if len(fileStoragePath) != 0 {
+				if err := appServer.handlers.DataStorage.Write(fileStoragePath); err != nil {
 					log.Fatal(err)
 				}
 			}
 
 			log.Fatal(appServer.server.Shutdown(context.Background()))
 		case <-reloadSignals:
-			if err := appServer.handlers.DataStorage.Write(fileStoragePath.String()); err != nil {
+			if err := appServer.handlers.DataStorage.Write(fileStoragePath); err != nil {
 				log.Fatal(err)
 			}
 		}

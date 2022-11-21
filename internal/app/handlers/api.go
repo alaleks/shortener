@@ -23,29 +23,32 @@ type InputShorten struct {
 }
 
 type OutputShorten struct {
-	Success bool   `json:"success"`
 	Result  string `json:"result,omitempty"`
 	Err     string `json:"error,omitempty"`
+	Success bool   `json:"success"`
 }
 
-var ErrInvalidJSON = errors.New("json is invalid, please check what you send. Should be: {'url':'https://example.ru'}")
+var ErrInvalidJSON = errors.New(`json is invalid, please check what you send. Should be: {"url":"https://example.ru"}`)
 
 func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) {
 	var (
-		buffer bytes.Buffer
 		input  InputShorten
 		output OutputShorten
 	)
 
-	defer buffer.Reset()
+	body, err := io.ReadAll(req.Body)
 
-	if _, err := io.Copy(&buffer, req.Body); err != nil {
+	if req.Body != nil {
+		defer req.Body.Close()
+	}
+
+	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	err := json.NewDecoder(&buffer).Decode(&input)
+	err = json.Unmarshal(body, &input)
 
 	switch {
 	case err != nil:
@@ -60,7 +63,6 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
-	buffer.Reset()
 
 	if output.Err == "" {
 		output.Success = true
@@ -69,13 +71,14 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 		writer.WriteHeader(http.StatusCreated)
 	}
 
-	if err := json.NewEncoder(&buffer).Encode(output); err != nil {
+	res, err := json.Marshal(output)
+	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	if _, err := writer.Write(buffer.Bytes()); err != nil {
+	if _, err := writer.Write(res); err != nil {
 		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
 
 		return
@@ -83,13 +86,13 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 }
 
 func (h *Handlers) createShortURL(longURL string) string {
-	shortURL := *h.baseURL
+	shortURL := h.baseURL
 
 	uid := h.DataStorage.Add(longURL, h.SizeUID)
 
-	shortURL.WriteString(uid)
+	shortURL += uid
 
-	return shortURL.String()
+	return shortURL
 }
 
 func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
@@ -111,7 +114,7 @@ func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 	var buffer bytes.Buffer
 
 	stat := Statistics{
-		ShortURL:  h.baseURL.String() + uid,
+		ShortURL:  h.baseURL + uid,
 		LongURL:   longURL,
 		Usage:     counterStat,
 		CreatedAt: createdAt,

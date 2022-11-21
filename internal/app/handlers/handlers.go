@@ -15,7 +15,7 @@ import (
 type Handlers struct {
 	DataStorage storage.Storage
 	SizeUID     int
-	baseURL     *bytes.Buffer
+	baseURL     string
 }
 
 var (
@@ -31,8 +31,8 @@ func New(sizeShortUID int, conf config.Configurator) *Handlers {
 		baseURL:     conf.GetBaseURL(),
 	}
 
-	if conf.GetFileStoragePath().String() != "" {
-		err := handlers.DataStorage.Read(conf.GetFileStoragePath().String())
+	if conf.GetFileStoragePath() != "" {
+		err := handlers.DataStorage.Read(conf.GetFileStoragePath())
 		if err != nil {
 			return &handlers
 		}
@@ -42,17 +42,19 @@ func New(sizeShortUID int, conf config.Configurator) *Handlers {
 }
 
 func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
-	var buffer bytes.Buffer
+	body, err := io.ReadAll(req.Body)
 
-	defer buffer.Reset()
+	if req.Body != nil {
+		defer req.Body.Close()
+	}
 
-	if _, err := io.Copy(&buffer, req.Body); err != nil {
+	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	longURL := string(bytes.TrimSpace(buffer.Bytes()))
+	longURL := string(bytes.TrimSpace(body))
 
 	if longURL == "" {
 		http.Error(writer, ErrEmptyURL.Error(), http.StatusBadRequest)
@@ -60,7 +62,7 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err := service.IsURL(longURL)
+	err = service.IsURL(longURL)
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
@@ -70,11 +72,11 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 	writer.WriteHeader(http.StatusCreated)
 
 	// формируем короткую ссылку
-	shortURL := *h.baseURL
+	shortURL := h.baseURL
 	uid := h.DataStorage.Add(longURL, h.SizeUID)
-	shortURL.WriteString(uid)
+	shortURL += uid
 
-	if _, err := writer.Write(shortURL.Bytes()); err != nil {
+	if _, err := writer.Write([]byte(shortURL)); err != nil {
 		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
 
 		return

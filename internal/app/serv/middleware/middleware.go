@@ -129,7 +129,7 @@ func DeCompress(handler http.Handler) http.Handler {
 				return
 			}
 
-			req.Body = readerCloserGzip{reader, req.Body}
+			req.Body = readerCloserGzip{Reader: reader, Closer: req.Body}
 
 			handler.ServeHTTP(writer, req)
 

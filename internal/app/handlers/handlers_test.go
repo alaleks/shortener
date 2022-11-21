@@ -16,7 +16,7 @@ func TestShortenURL(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	appConf := config.New(nil)
+	appConf := config.New(config.Options{})
 	appConf.DefineOptionsFlags([]string{"TestFlags", "-a", "", "-b", "", "-f", ""})
 	testHandler := handlers.New(5, appConf)
 
@@ -45,7 +45,7 @@ func TestShortenURL(t *testing.T) {
 			// создаем запрос, рекордер, хэндлер, запускаем сервер
 			w := httptest.NewRecorder()
 			h := http.HandlerFunc(testHandler.ShortenURL)
-			req := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL().String(), bytes.NewBuffer([]byte(item.url)))
+			req := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL(), bytes.NewBuffer([]byte(item.url)))
 			h.ServeHTTP(w, req)
 			res := w.Result()
 
@@ -71,7 +71,7 @@ func TestParseShortURL(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	appConf := config.New(nil)
+	appConf := config.New(config.Options{})
 	appConf.DefineOptionsFlags([]string{"TestFlags", "-a", "", "-b", "", "-f", ""})
 	testHandler := handlers.New(5, appConf)
 	longURL := "https://github.com/alaleks/shortener"
@@ -86,15 +86,15 @@ func TestParseShortURL(t *testing.T) {
 	}{
 		{
 			name: "парсинг корректной короткой ссылки", code: 307,
-			longURL: longURL, shortURL: appConf.GetBaseURL().String() + uid,
+			longURL: longURL, shortURL: appConf.GetBaseURL() + uid,
 		},
 		{
 			name: "парсинг некорректной короткой ссылки - 1", code: 405,
-			longURL: "", shortURL: appConf.GetBaseURL().String(),
+			longURL: "", shortURL: appConf.GetBaseURL(),
 		},
 		{
 			name: "парсинг некорректной короткой ссылки - 2", code: 400,
-			longURL: "", shortURL: appConf.GetBaseURL().String() + "badId",
+			longURL: "", shortURL: appConf.GetBaseURL() + "badId",
 		},
 	}
 

@@ -22,7 +22,7 @@ const data = `{"url":"https://github.com/alaleks/shortener"}`
 func TestShortenURLAPI(t *testing.T) {
 	t.Parallel()
 	// данные для теста
-	appConf := config.New(nil)
+	appConf := config.New(config.Options{})
 	appConf.DefineOptionsFlags([]string{"TestFlags", "-a", "", "-b", "", "-f", ""})
 	testHandler := handlers.New(5, appConf)
 
@@ -49,7 +49,7 @@ func TestShortenURLAPI(t *testing.T) {
 			// создаем запрос, рекордер, хэндлер, запускаем сервер
 			w := httptest.NewRecorder()
 			h := http.HandlerFunc(testHandler.ShortenURLAPI)
-			req := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL().String(), bytes.NewBuffer([]byte(item.data)))
+			req := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL(), bytes.NewBuffer([]byte(item.data)))
 			h.ServeHTTP(w, req)
 			res := w.Result()
 
@@ -76,7 +76,7 @@ func TestGetStatAPI(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	appConf := config.New(nil)
+	appConf := config.New(config.Options{})
 	appConf.DefineOptionsFlags([]string{"TestFlags", "-a", "", "-b", "", "-f", ""})
 	testHandler := handlers.New(5, appConf)
 	// генерируем uid
@@ -85,7 +85,7 @@ func TestGetStatAPI(t *testing.T) {
 	// добавляем длинные ссылки в хранилище
 	uid1 := testHandler.DataStorage.Add(longURL1, testHandler.SizeUID)
 	uid2 := testHandler.DataStorage.Add(longURL2, testHandler.SizeUID)
-	hostStat := appConf.GetBaseURL().String() + "api/"
+	hostStat := appConf.GetBaseURL() + "api/"
 	// для uid1 изменяем статистику
 	testHandler.DataStorage.Update(uid1)
 	// создаем роутеры
@@ -143,7 +143,7 @@ func TestSetEnv(t *testing.T) {
 
 	// настройки для теста
 	options := config.Options{Env: true, Flag: false}
-	appConf := config.New(&options)
+	appConf := config.New(options)
 	appConf.DefineOptionsEnv()
 	testHandler := handlers.New(5, appConf)
 
@@ -166,8 +166,8 @@ func TestSetEnv(t *testing.T) {
 
 	_ = json.Unmarshal(resBody, &dataFromRes)
 
-	if appConf.GetFileStoragePath().Len() != 0 {
-		_ = testHandler.DataStorage.Write(appConf.GetFileStoragePath().String())
+	if len(appConf.GetFileStoragePath()) != 0 {
+		_ = testHandler.DataStorage.Write(appConf.GetFileStoragePath())
 	}
 
 	if req.URL.String() != "localhost:9090" {
@@ -178,20 +178,20 @@ func TestSetEnv(t *testing.T) {
 		t.Errorf("short url should be contains http://example.ru/ but no %s", req.URL.String())
 	}
 
-	if _, err := os.Stat(appConf.GetFileStoragePath().String()); err != nil {
+	if _, err := os.Stat(appConf.GetFileStoragePath()); err != nil {
 		t.Errorf("failed to create file storage %s", err.Error())
 	}
 
 	// сбрасываеи карту и читаем файл
 	testHandler.DataStorage = storage.New()
-	_ = testHandler.DataStorage.Read(appConf.GetFileStoragePath().String())
+	_ = testHandler.DataStorage.Read(appConf.GetFileStoragePath())
 
 	if _, ok := testHandler.DataStorage.GetURL(strings.Split(dataFromRes.Result, "/")[3]); !ok {
 		t.Errorf("failed to get data from file storage: %s", dataFromRes.Result)
 	}
 
 	// удаляем созданное файловое хранилище
-	_ = os.Remove(appConf.GetFileStoragePath().String())
+	_ = os.Remove(appConf.GetFileStoragePath())
 }
 
 func TestSetFlag(t *testing.T) {
@@ -199,7 +199,7 @@ func TestSetFlag(t *testing.T) {
 
 	// настройки для теста
 	options := config.Options{Env: true, Flag: true}
-	appConf := config.New(&options)
+	appConf := config.New(options)
 	argsTest := []string{
 		"TestFlags", "-a", "localhost:9093", "-b",
 		"http://localhost:9093/", "-f", "./storage",
@@ -226,8 +226,8 @@ func TestSetFlag(t *testing.T) {
 
 	_ = json.Unmarshal(resBody, &dataFromRes)
 
-	if appConf.GetFileStoragePath().Len() != 0 {
-		_ = testHandler.DataStorage.Write(appConf.GetFileStoragePath().String())
+	if len(appConf.GetFileStoragePath()) != 0 {
+		_ = testHandler.DataStorage.Write(appConf.GetFileStoragePath())
 	}
 
 	if req.URL.String() != "localhost:9093" {
@@ -238,26 +238,26 @@ func TestSetFlag(t *testing.T) {
 		t.Errorf("short url should be contains http://localhost:9093/ but no %s", req.URL.String())
 	}
 
-	if _, err := os.Stat(appConf.GetFileStoragePath().String()); err != nil {
+	if _, err := os.Stat(appConf.GetFileStoragePath()); err != nil {
 		t.Errorf("failed to create file storage %s", err.Error())
 	}
 
 	// сбрасываеи карту и читаем файл
 	testHandler.DataStorage = storage.New()
-	_ = testHandler.DataStorage.Read(appConf.GetFileStoragePath().String())
+	_ = testHandler.DataStorage.Read(appConf.GetFileStoragePath())
 
 	if _, ok := testHandler.DataStorage.GetURL(strings.Split(dataFromRes.Result, "/")[3]); !ok {
 		t.Errorf("failed to get data from file storage: %s", dataFromRes.Result)
 	}
 
 	// удаляем созданное файловое хранилище
-	_ = os.Remove(appConf.GetFileStoragePath().String())
+	_ = os.Remove(appConf.GetFileStoragePath())
 }
 
 func TestCompress(t *testing.T) {
 	t.Parallel()
 	// данные для теста
-	appConf := config.New(nil)
+	appConf := config.New(config.Options{})
 	appConf.DefineOptionsFlags([]string{"TestFlags", "-a", "", "-b", "", "-f", ""})
 	testHandler := handlers.New(5, appConf)
 
@@ -279,7 +279,7 @@ func TestCompress(t *testing.T) {
 			testRec := httptest.NewRecorder()
 			h := middleware.New(middleware.Compress, middleware.DeCompress).
 				Configure(http.HandlerFunc(testHandler.ShortenURLAPI))
-			req := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL().String(), bytes.NewBuffer([]byte(data)))
+			req := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL(), bytes.NewBuffer([]byte(data)))
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Accept-Encoding", item.acceptEncoding)
 			h.ServeHTTP(testRec, req)

@@ -16,13 +16,12 @@ type FileStorage interface {
 
 func (u *Urls) Write(filepath string) error {
 	file, err := os.Create(correctorFilename(filepath))
+	if err != nil {
+		return fmt.Errorf("failed create file storage: %w", err)
+	}
 
 	if file != nil {
 		defer file.Close()
-	}
-
-	if err != nil {
-		return fmt.Errorf("failed create file storage: %w", err)
 	}
 
 	buf := new(bytes.Buffer)
@@ -49,13 +48,12 @@ func (u *Urls) Write(filepath string) error {
 
 func (u *Urls) Read(filepath string) error {
 	file, err := os.Open(correctorFilename(filepath))
+	if err != nil {
+		return fmt.Errorf("failed open file storage: %w", err)
+	}
 
 	if file != nil {
 		defer file.Close()
-	}
-
-	if err != nil {
-		return fmt.Errorf("failed open file storage: %w", err)
 	}
 
 	decoder := gob.NewDecoder(file)
