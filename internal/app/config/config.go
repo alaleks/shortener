@@ -43,7 +43,7 @@ type confFlags struct {
 func New(opt Options) *AppConfig {
 	return &AppConfig{
 		serverAddress:   "localhost:8080",
-		baseURL:         "",
+		baseURL:         "http://localhost:8080/",
 		fileStoragePath: "",
 	}
 }
@@ -124,18 +124,12 @@ func (a *AppConfig) checkOptions() {
 		a.serverAddress += ":8080"
 	}
 
-	// проверка корректности base url - должен быть протокол и слэш в конце
-	switch len(a.baseURL) {
-	case 0:
-		a.baseURL = httpPrefix + a.serverAddress + "/"
-	default:
-		if !strings.HasPrefix(a.baseURL, "http") {
-			uri := a.baseURL
-			a.baseURL = httpPrefix + uri
-		}
+	if !strings.HasPrefix(a.baseURL, "http") {
+		uri := a.baseURL
+		a.baseURL = httpPrefix + uri
+	}
 
-		if !strings.HasSuffix(a.baseURL, "/") {
-			a.baseURL += "/"
-		}
+	if !strings.HasSuffix(a.baseURL, "/") {
+		a.baseURL += "/"
 	}
 }
