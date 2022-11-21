@@ -61,15 +61,17 @@ func (a *AppConfig) GetFileStoragePath() string {
 }
 
 func (a *AppConfig) DefineOptionsEnv() {
-	if servAddr, ok := os.LookupEnv("SERVER_ADDRESS"); ok {
+	if servAddr, ok := os.LookupEnv("SERVER_ADDRESS"); ok && servAddr != "" {
 		a.serverAddress = servAddr
 	}
 
-	if baseURL, ok := os.LookupEnv("BASE_URL"); ok {
+	if baseURL, ok := os.LookupEnv("BASE_URL"); ok && baseURL != "" {
 		a.baseURL = baseURL
+	} else {
+		a.baseURL = a.serverAddress
 	}
 
-	if fileStoragePath, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok {
+	if fileStoragePath, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok && fileStoragePath != "" {
 		a.fileStoragePath = fileStoragePath
 	}
 
@@ -87,6 +89,8 @@ func (a *AppConfig) DefineOptionsFlags(args []string) {
 
 		if *confFlags.b != "" {
 			a.baseURL = *confFlags.b
+		} else {
+			a.baseURL = a.serverAddress
 		}
 
 		if *confFlags.f != "" {

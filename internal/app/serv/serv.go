@@ -30,14 +30,14 @@ type AppServer struct {
 
 func New(sizeUID int) *AppServer {
 	var (
-		options                        = config.Options{Env: true, Flag: true}
-		appConf    config.Configurator = config.New(options)
-		appHandler                     = handlers.New(sizeUID, appConf)
+		options                     = config.Options{Env: true, Flag: true}
+		appConf config.Configurator = config.New(options)
 	)
 
 	// конфигурируем опции согласно переменных окружения и флагов
 	appConf.DefineOptionsEnv()
 	appConf.DefineOptionsFlags(os.Args)
+	appHandler := handlers.New(sizeUID, appConf)
 
 	server := &http.Server{
 		Handler: middleware.New(middleware.Compress, middleware.DeCompress).
