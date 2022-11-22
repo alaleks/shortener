@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
@@ -8,15 +9,10 @@ import (
 )
 
 func main() {
-	server, err := serv.New(":8080")
-	// здесь ошибка возвращается если недоступен порт
-	// поэтому нужна проверка перед стартом сервера
-	if err != nil {
-		log.Fatal(err)
-	}
+	sizeUID := 5
+	server := serv.New(sizeUID)
 
-	err = serv.Run(server)
-	if err != nil && err != http.ErrServerClosed {
+	if err := serv.Run(server); !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
 }

@@ -8,67 +8,93 @@ import (
 	"github.com/alaleks/shortener/internal/app/service"
 )
 
-type Storager interface {
-	Add(longUrl string) (uid string)
-	GetURL(uid string) (string, bool)
-	Stat(uid string) (string, uint, string)
+type Storage interface {
+	Producer
+	Consumer
+	FileStorage
+}
+
+type Producer interface {
+	Add(longURL string, sizeUID int) string
 	Update(uid string) bool
 }
 
-type uri struct {
-	longUrl   string
-	created   time.Time
-	statistic uint // short URL usage statistics (actually this is the number of redirects)
+type Consumer interface {
+	GetURL(uid string) (string, bool)
+	Stat(uid string) (string, uint, string)
+}
+
+type URLElement struct {
+	CreatedAt  time.Time
+	LongURL    string
+	Statistics uint // short URL usage statistics (actually this is the number of redirects)
 }
 
 type Urls struct {
-	data map[string]*uri // where key uid short url
-	mtx  *sync.Mutex
+	data map[string]*URLElement // where key uid short url
+	mu   sync.RWMutex
 }
 
-func (u *Urls) Add(longUrl string) (uid string) {
-	if !strings.HasPrefix(longUrl, "http") {
-		longUrl = "http://" + longUrl
+func New() *Urls {
+	return &Urls{
+		data: make(map[string]*URLElement),
+		mu:   sync.RWMutex{},
+	}
+}
+
+func (u *Urls) Add(longURL string, sizeUID int) string {
+	if !strings.HasPrefix(longURL, "http") {
+		longURL = "http://" + longURL
 	}
 
-	uid = service.GenUid(5)
-	u.data[uid] = &uri{longUrl, time.Now(), 0}
+	// генерируем id
+	uid := service.GenUID(sizeUID)
+
+	element := &URLElement{
+		LongURL:    longURL,
+		CreatedAt:  time.Now(),
+		Statistics: 0,
+	}
+
+	u.mu.Lock()
+	u.data[uid] = element
+	u.mu.Unlock()
 
 	return uid
 }
 
 func (u *Urls) GetURL(uid string) (string, bool) {
-	uri, ok := u.data[uid]
-	if ok {
-		return uri.longUrl, ok
+	u.mu.RLock()
+	uri, check := u.data[uid]
+	u.mu.RUnlock()
+
+	if check {
+		return uri.LongURL, check
 	}
-	return "", ok
+
+	return "", check
 }
 
 func (u *Urls) Update(uid string) bool {
-	u.mtx.Lock()
-	defer u.mtx.Unlock()
-	uri, ok := u.data[uid]
-	if ok {
-		uri.statistic++
-		u.data[uid] = uri
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	element, check := u.data[uid]
+
+	if check {
+		element.Statistics++
 	}
-	return ok
+
+	return check
 }
 
 func (u *Urls) Stat(uid string) (string, uint, string) {
-	uri, ok := u.data[uid]
-	if !ok {
+	u.mu.RLock()
+	uri, check := u.data[uid]
+	u.mu.RUnlock()
+
+	if !check {
 		return "", 0, ""
 	}
-	return uri.longUrl, uri.statistic, uri.created.Format("02.01.2006 15:04:05")
-}
 
-var DataStorage Storager
-
-func init() {
-	DataStorage = &Urls{
-		data: make(map[string]*uri),
-		mtx:  &sync.Mutex{},
-	}
+	return uri.LongURL, uri.Statistics, uri.CreatedAt.Format("02.01.2006 15:04:05")
 }

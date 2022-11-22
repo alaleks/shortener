@@ -1,85 +1,105 @@
 package handlers
 
 import (
-	"fmt"
+	"bytes"
+	"errors"
 	"io"
 	"net/http"
-	"strings"
 
+	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/alaleks/shortener/internal/app/storage"
-
 	"github.com/gorilla/mux"
 )
 
-func ShortenURL(w http.ResponseWriter, r *http.Request) {
+type Handlers struct {
+	DataStorage storage.Storage
+	baseURL     string
+	SizeUID     int
+}
 
-	body, err := io.ReadAll(r.Body)
+var (
+	ErrEmptyURL   = errors.New("url is empty")
+	ErrWriter     = errors.New("sorry, an error has occurred, please try again")
+	ErrUIDInvalid = errors.New("short url is invalid")
+)
+
+func New(sizeShortUID int, conf config.Configurator) *Handlers {
+	handlers := Handlers{
+		DataStorage: storage.New(),
+		SizeUID:     sizeShortUID,
+		baseURL:     conf.GetBaseURL(),
+	}
+
+	if conf.GetFileStoragePath() != "" {
+		err := handlers.DataStorage.Read(conf.GetFileStoragePath())
+		if err != nil {
+			return &handlers
+		}
+	}
+
+	return &handlers
+}
+
+func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
+	body, err := io.ReadAll(req.Body)
+
+	if req.Body != nil {
+		defer req.Body.Close()
+	}
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
 		return
 	}
 
-	longUrl := strings.TrimSpace(string(body))
+	longURL := string(bytes.TrimSpace(body))
 
-	if longUrl == "" {
-		http.Error(w, "url is empty", http.StatusBadRequest)
+	if longURL == "" {
+		http.Error(writer, ErrEmptyURL.Error(), http.StatusBadRequest)
+
 		return
 	}
 
-	err = service.IsUrl(longUrl)
+	err = service.IsURL(longURL)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
 
-	if err == nil {
-		w.WriteHeader(http.StatusCreated)
-		host := "http://" + r.Host + "/"
-
-		if r.TLS != nil {
-			host = "https://" + r.Host + "/"
-		}
-
-		uid := storage.DataStorage.Add(longUrl)
-		w.Write([]byte(host + uid))
 		return
 	}
 
-	http.Error(w, err.Error(), http.StatusBadRequest)
+	writer.WriteHeader(http.StatusCreated)
 
+	// формируем короткую ссылку
+	shortURL := h.baseURL
+	uid := h.DataStorage.Add(longURL, h.SizeUID)
+	shortURL += uid
+
+	if _, err := writer.Write([]byte(shortURL)); err != nil {
+		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
+
+		return
+	}
 }
 
-func ParseShortURL(w http.ResponseWriter, r *http.Request) {
-	uid := mux.Vars(r)["uid"]
+func (h *Handlers) ParseShortURL(writer http.ResponseWriter, req *http.Request) {
+	uid := mux.Vars(req)["uid"]
 
 	if uid == "" {
-		http.Error(w, "uid is empty", http.StatusBadRequest)
+		http.Error(writer, ErrEmptyURL.Error(), http.StatusBadRequest)
+
 		return
 	}
 
-	longUrl, ok := storage.DataStorage.GetURL(uid)
+	longURL, ok := h.DataStorage.GetURL(uid)
 	if !ok {
-		http.Error(w, "this short url is invalid", http.StatusBadRequest)
-		return
-	}
-	storage.DataStorage.Update(uid)
-	w.Header().Set("Location", longUrl)
-	w.WriteHeader(http.StatusTemporaryRedirect)
-}
+		http.Error(writer, ErrUIDInvalid.Error(), http.StatusBadRequest)
 
-func GetStat(w http.ResponseWriter, r *http.Request) {
-	uid := mux.Vars(r)["uid"]
-
-	if uid == "" {
-		http.Error(w, "uid is empty", http.StatusBadRequest)
 		return
 	}
 
-	host := "http://" + r.Host + "/"
-
-	if r.TLS != nil {
-		host = "https://" + r.Host + "/"
-	}
-
-	longUrl, counterStat, created := storage.DataStorage.Stat(uid)
-
-	w.Write([]byte(fmt.Sprintf("short link: %s%s \nurl: %s \nusage: %d \ncreated: %s", host, uid, longUrl, counterStat, created)))
+	h.DataStorage.Update(uid)
+	writer.Header().Set("Location", longURL)
+	writer.WriteHeader(http.StatusTemporaryRedirect)
 }
