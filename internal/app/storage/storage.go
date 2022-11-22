@@ -25,8 +25,8 @@ type Consumer interface {
 }
 
 type URLElement struct {
-	LongURL    string
 	CreatedAt  time.Time
+	LongURL    string
 	Statistics uint // short URL usage statistics (actually this is the number of redirects)
 }
 

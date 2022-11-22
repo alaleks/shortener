@@ -41,11 +41,21 @@ type confFlags struct {
 }
 
 func New(opt Options) *AppConfig {
-	return &AppConfig{
+	appConf := AppConfig{
 		serverAddress:   "localhost:8080",
 		baseURL:         "http://localhost:8080/",
 		fileStoragePath: "",
 	}
+
+	if opt.Env {
+		appConf.DefineOptionsEnv()
+	}
+
+	if opt.Flag {
+		appConf.DefineOptionsFlags(os.Args)
+	}
+
+	return &appConf
 }
 
 func (a *AppConfig) GetServAddr() string {
@@ -129,8 +139,7 @@ func (a *AppConfig) checkOptions() {
 	}
 
 	if !strings.HasPrefix(a.baseURL, "http") {
-		uri := a.baseURL
-		a.baseURL = httpPrefix + uri
+		a.baseURL = fmt.Sprintf("%s%s", httpPrefix, a.baseURL)
 	}
 
 	if !strings.HasSuffix(a.baseURL, "/") {

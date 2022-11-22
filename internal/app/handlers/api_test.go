@@ -22,8 +22,7 @@ const data = `{"url":"https://github.com/alaleks/shortener"}`
 func TestShortenURLAPI(t *testing.T) {
 	t.Parallel()
 	// данные для теста
-	appConf := config.New(config.Options{})
-	appConf.DefineOptionsFlags([]string{"TestFlags", "-a", "", "-b", "", "-f", ""})
+	appConf := config.New(config.Options{Env: false, Flag: false})
 	testHandler := handlers.New(5, appConf)
 
 	tests := []struct {
@@ -76,8 +75,7 @@ func TestGetStatAPI(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	appConf := config.New(config.Options{})
-	appConf.DefineOptionsFlags([]string{"TestFlags", "-a", "", "-b", "", "-f", ""})
+	appConf := config.New(config.Options{Env: false, Flag: false})
 	testHandler := handlers.New(5, appConf)
 	// генерируем uid
 	longURL1 := "https://github.com/alaleks/shortener"
@@ -142,9 +140,7 @@ func TestSetEnv(t *testing.T) {
 	t.Setenv("FILE_STORAGE_PATH", "./storage")
 
 	// настройки для теста
-	options := config.Options{Env: true, Flag: false}
-	appConf := config.New(options)
-	appConf.DefineOptionsEnv()
+	appConf := config.New(config.Options{Env: true, Flag: false})
 	testHandler := handlers.New(5, appConf)
 
 	// создаем запрос, рекордер, хэндлер, запускаем сервер
@@ -257,8 +253,7 @@ func TestSetFlag(t *testing.T) {
 func TestCompress(t *testing.T) {
 	t.Parallel()
 	// данные для теста
-	appConf := config.New(config.Options{})
-	appConf.DefineOptionsFlags([]string{"TestFlags", "-a", "", "-b", "", "-f", ""})
+	appConf := config.New(config.Options{Env: false, Flag: false})
 	testHandler := handlers.New(5, appConf)
 
 	tests := []struct {

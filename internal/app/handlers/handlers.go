@@ -14,8 +14,8 @@ import (
 
 type Handlers struct {
 	DataStorage storage.Storage
-	SizeUID     int
 	baseURL     string
+	SizeUID     int
 }
 
 var (

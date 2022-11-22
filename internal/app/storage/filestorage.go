@@ -40,7 +40,7 @@ func (u *Urls) Write(filepath string) error {
 	err = writer.Flush()
 
 	if err != nil {
-		return fmt.Errorf("failed to dump data to file: %w", writer.Flush())
+		return fmt.Errorf("failed to dump data to file: %w", err)
 	}
 
 	return nil
