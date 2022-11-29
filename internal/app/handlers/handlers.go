@@ -13,8 +13,9 @@ import (
 )
 
 type Handlers struct {
-	DataStorage storage.Storage
 	baseURL     string
+	DataStorage storage.Storage
+	Users       storage.Users
 	SizeUID     int
 }
 
@@ -29,6 +30,7 @@ func New(sizeShortUID int, conf config.Configurator) *Handlers {
 		DataStorage: storage.New(),
 		SizeUID:     sizeShortUID,
 		baseURL:     conf.GetBaseURL(),
+		Users:       storage.NewUsers(),
 	}
 
 	if conf.GetFileStoragePath() != "" {
@@ -74,6 +76,11 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 	// формируем короткую ссылку
 	shortURL := h.baseURL
 	uid := h.DataStorage.Add(longURL, h.SizeUID)
+
+	if req.URL.User != nil {
+		h.Users.AddShortUID(req.URL.User.Username(), uid)
+	}
+
 	shortURL += uid
 
 	if _, err := writer.Write([]byte(shortURL)); err != nil {

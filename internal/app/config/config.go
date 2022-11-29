@@ -21,12 +21,14 @@ type Recipient interface {
 type Tuner interface {
 	DefineOptionsEnv()
 	DefineOptionsFlags([]string)
+	GetSecretKey() []byte
 }
 
 type AppConfig struct {
 	serverAddress   string
 	baseURL         string
 	fileStoragePath string
+	secretKey       []byte
 }
 
 type Options struct {
@@ -45,6 +47,7 @@ func New(opt Options) *AppConfig {
 		serverAddress:   "localhost:8080",
 		baseURL:         "http://localhost:8080/",
 		fileStoragePath: "",
+		secretKey:       []byte("9EE3BF9351DFCFF24CD6DA2C4D963"),
 	}
 
 	if opt.Env {
@@ -68,6 +71,10 @@ func (a *AppConfig) GetBaseURL() string {
 
 func (a *AppConfig) GetFileStoragePath() string {
 	return a.fileStoragePath
+}
+
+func (a *AppConfig) GetSecretKey() []byte {
+	return a.secretKey
 }
 
 func (a *AppConfig) DefineOptionsEnv() {

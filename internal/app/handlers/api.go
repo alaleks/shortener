@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/gorilla/mux"
@@ -26,6 +27,11 @@ type OutputShorten struct {
 	Result  string `json:"result,omitempty"`
 	Err     string `json:"error,omitempty"`
 	Success bool   `json:"success"`
+}
+
+type OutputUsersUrls struct {
+	ShotrURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
 }
 
 var ErrInvalidJSON = errors.New(`json is invalid, please check what you send. Should be: {"url":"https://example.ru"}`)
@@ -57,16 +63,19 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 		output.Err = ErrInvalidJSON.Error()
 	default:
 		err = service.IsURL(input.URL)
-		if err != nil {
-			output.Err = err.Error()
-		}
+		output.Err = err.Error()
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
 
 	if output.Err == "" {
 		output.Success = true
-		output.Result = h.createShortURL(input.URL)
+		uid := h.DataStorage.Add(input.URL, h.SizeUID)
+		output.Result = h.baseURL + uid
+
+		if req.URL.User != nil {
+			h.Users.AddShortUID(req.URL.User.Username(), uid)
+		}
 
 		writer.WriteHeader(http.StatusCreated)
 	}
@@ -83,16 +92,6 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 
 		return
 	}
-}
-
-func (h *Handlers) createShortURL(longURL string) string {
-	shortURL := h.baseURL
-
-	uid := h.DataStorage.Add(longURL, h.SizeUID)
-
-	shortURL += uid
-
-	return shortURL
 }
 
 func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
@@ -121,6 +120,55 @@ func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 	}
 
 	if err := json.NewEncoder(&buffer).Encode(stat); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+
+	if _, err := writer.Write(buffer.Bytes()); err != nil {
+		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
+
+		return
+	}
+}
+
+func (h *Handlers) GetUsersURL(writer http.ResponseWriter, req *http.Request) {
+	var buffer bytes.Buffer
+
+	if req.URL.User == nil {
+		writer.WriteHeader(http.StatusNoContent)
+
+		return
+	}
+
+	userID, err := strconv.Atoi(req.URL.User.Username())
+	if err != nil {
+		writer.WriteHeader(http.StatusNoContent)
+
+		return
+	}
+
+	uidsShorlURL, _ := h.Users.Check(uint(userID))
+
+	if len(uidsShorlURL) == 0 {
+		writer.WriteHeader(http.StatusNoContent)
+
+		return
+	}
+
+	out := []OutputUsersUrls{}
+
+	for _, v := range uidsShorlURL {
+		uri, check := h.DataStorage.GetURL(v)
+
+		if check {
+			out = append(out, OutputUsersUrls{ShotrURL: h.baseURL + v, OriginalURL: uri})
+		}
+	}
+
+	if err := json.NewEncoder(&buffer).Encode(out); err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return

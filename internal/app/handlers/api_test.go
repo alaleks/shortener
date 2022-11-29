@@ -14,6 +14,7 @@ import (
 	"github.com/alaleks/shortener/internal/app/handlers"
 	"github.com/alaleks/shortener/internal/app/router"
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
+	"github.com/alaleks/shortener/internal/app/serv/middleware/compress"
 	"github.com/alaleks/shortener/internal/app/storage"
 )
 
@@ -272,7 +273,7 @@ func TestCompress(t *testing.T) {
 
 			// создаем запрос, рекордер, хэндлер, запускаем сервер
 			testRec := httptest.NewRecorder()
-			h := middleware.New(middleware.Compress, middleware.DeCompress).
+			h := middleware.New(compress.Compression, compress.Unpacking).
 				Configure(http.HandlerFunc(testHandler.ShortenURLAPI))
 			req := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL(), bytes.NewBuffer([]byte(data)))
 			req.Header.Set("Content-Type", "application/json")

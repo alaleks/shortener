@@ -13,6 +13,8 @@ import (
 	"github.com/alaleks/shortener/internal/app/handlers"
 	"github.com/alaleks/shortener/internal/app/router"
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
+	"github.com/alaleks/shortener/internal/app/serv/middleware/auth"
+	"github.com/alaleks/shortener/internal/app/serv/middleware/compress"
 )
 
 const (
@@ -32,10 +34,11 @@ func New(sizeUID int) *AppServer {
 	var (
 		appConf    config.Configurator = config.New(config.Options{Env: true, Flag: true})
 		appHandler                     = handlers.New(sizeUID, appConf)
+		auth                           = auth.TurnOn(&appHandler.Users, appConf.GetSecretKey())
 	)
 
 	server := &http.Server{
-		Handler: middleware.New(middleware.Compress, middleware.DeCompress).
+		Handler: middleware.New(compress.Compression, compress.Unpacking, auth.Authorization).
 			Configure(router.Create(appHandler)),
 		ReadTimeout:       defaultTimeout,
 		WriteTimeout:      defaultTimeout,
