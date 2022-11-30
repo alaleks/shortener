@@ -56,14 +56,12 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 
 	err = json.Unmarshal(body, &input)
 
-	switch {
-	case err != nil:
+	if err != nil {
 		output.Err = err.Error()
-	case input.URL == "":
+	}
+
+	if err := service.IsURL(input.URL); err != nil {
 		output.Err = ErrInvalidJSON.Error()
-	default:
-		err = service.IsURL(input.URL)
-		output.Err = err.Error()
 	}
 
 	writer.Header().Set("Content-Type", "application/json")

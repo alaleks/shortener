@@ -64,25 +64,25 @@ func (a Auth) Authorization(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
 		authCookie, err := getCookie(req, cookieName)
 		if authCookie == nil || err != nil {
-			uid := a.users.Create()
-			setCookie(writer, req, a.createSigning(uid))
-			req.URL.User = url.User(strconv.Itoa(int(uid)))
+			userID := a.users.Create()
+			setCookie(writer, req, a.createSigning(userID))
+			req.URL.User = url.User(strconv.Itoa(int(userID)))
 			handler.ServeHTTP(writer, req)
 
 			return
 		}
 
-		checkSigning, err := a.readSigning(authCookie.Value)
+		userID, err := a.readSigning(authCookie.Value)
 		if err != nil {
-			uid := a.users.Create()
-			setCookie(writer, req, a.createSigning(uid))
-			req.URL.User = url.User(strconv.Itoa(int(uid)))
+			userID = a.users.Create()
+			setCookie(writer, req, a.createSigning(userID))
+			req.URL.User = url.User(strconv.Itoa(int(userID)))
 			handler.ServeHTTP(writer, req)
 
 			return
 		}
 
-		req.URL.User = url.User(strconv.Itoa(int(checkSigning)))
+		req.URL.User = url.User(strconv.Itoa(int(userID)))
 		handler.ServeHTTP(writer, req)
 	})
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/alaleks/shortener/internal/app/handlers"
 	"github.com/alaleks/shortener/internal/app/router"
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
+	"github.com/alaleks/shortener/internal/app/serv/middleware/auth"
 	"github.com/alaleks/shortener/internal/app/serv/middleware/compress"
 	"github.com/alaleks/shortener/internal/app/storage"
 )
@@ -281,12 +282,91 @@ func TestCompress(t *testing.T) {
 			h.ServeHTTP(testRec, req)
 			res := testRec.Result()
 			if res != nil {
-				res.Body.Close()
+				defer res.Body.Close()
 			}
 
 			if item.contentEncoding != res.Header.Get("Content-Encoding") {
 				t.Errorf("content-Encoding should be '%s' but received '%s'",
 					item.contentEncoding, res.Header.Get("Content-Encoding"))
+			}
+		})
+	}
+}
+
+func TestGetUsersURL(t *testing.T) {
+	t.Parallel()
+	// данные для теста
+	appConf := config.New(config.Options{Env: false, Flag: false})
+	testHandler := handlers.New(5, appConf)
+	auth := auth.TurnOn(&testHandler.Users, appConf.GetSecretKey())
+	tests := []struct {
+		name string
+		code int
+		url  string
+	}{
+		{
+			name: "проверка когда кука установлена и валидна", code: 200,
+			url: "http://github.com/alaleks/shortener",
+		},
+		{
+			name: "проверка, когда кука пуста", code: 204,
+			url: "",
+		},
+		{
+			name: "проверка, когда куку пытались поменять", code: 204,
+			url: "wrong",
+		},
+	}
+
+	for _, v := range tests {
+		item := v
+		t.Run(item.name, func(t *testing.T) {
+			t.Parallel()
+
+			testRec := httptest.NewRecorder()
+			h := middleware.New(auth.Authorization).
+				Configure(http.HandlerFunc(testHandler.GetUsersURL))
+			req := httptest.NewRequest(http.MethodGet, appConf.GetBaseURL(), nil)
+
+			// тестируем сценарий добавления куки пр сокращении URL
+			if item.url != "" {
+				testRec2 := httptest.NewRecorder()
+				h2 := middleware.New(auth.Authorization).
+					Configure(http.HandlerFunc(testHandler.ShortenURL))
+				req2 := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL(), bytes.NewBuffer([]byte(item.url)))
+				h2.ServeHTTP(testRec2, req2)
+				res2 := testRec2.Result()
+				if res2.Body != nil {
+					defer res2.Body.Close()
+				}
+				http.SetCookie(testRec, res2.Cookies()[0])
+				req.Header = http.Header{"Cookie": testRec2.Header()["Set-Cookie"]}
+			}
+
+			// здесь меняем куку авторизации
+			if item.url == "wrong" {
+				testRec2 := httptest.NewRecorder()
+				h2 := middleware.New(auth.Authorization).
+					Configure(http.HandlerFunc(testHandler.ShortenURL))
+				req2 := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL(), bytes.NewBuffer([]byte(item.url)))
+				h2.ServeHTTP(testRec2, req2)
+				res2 := testRec2.Result()
+				if res2.Body != nil {
+					defer res2.Body.Close()
+				}
+				cookie := res2.Cookies()[0]
+				cookie.Value += "wrong"
+				http.SetCookie(testRec, cookie)
+				req.Header = http.Header{"Cookie": testRec2.Header()["Set-Cookie"]}
+			}
+
+			h.ServeHTTP(testRec, req)
+			res := testRec.Result()
+			if res.Body != nil {
+				defer res.Body.Close()
+			}
+			if res.StatusCode != item.code {
+				t.Errorf("status code should be %d but received %d", item.code, res.StatusCode)
 			}
 		})
 	}
