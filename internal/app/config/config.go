@@ -16,18 +16,20 @@ type Recipient interface {
 	GetServAddr() string
 	GetBaseURL() string
 	GetFileStoragePath() string
+	GetSecretKey() []byte
+	GetDSN() string
 }
 
 type Tuner interface {
 	DefineOptionsEnv()
 	DefineOptionsFlags([]string)
-	GetSecretKey() []byte
 }
 
 type AppConfig struct {
 	serverAddress   string
 	baseURL         string
 	fileStoragePath string
+	dsn             string
 	secretKey       []byte
 }
 
@@ -40,6 +42,7 @@ type confFlags struct {
 	a *string
 	b *string
 	f *string
+	d *string
 }
 
 func New(opt Options) *AppConfig {
@@ -47,6 +50,7 @@ func New(opt Options) *AppConfig {
 		serverAddress:   "localhost:8080",
 		baseURL:         "http://localhost:8080/",
 		fileStoragePath: "",
+		dsn:             "",
 		secretKey:       []byte("9EE3BF9351DFCFF24CD6DA2C4D963"),
 	}
 
@@ -77,6 +81,10 @@ func (a *AppConfig) GetSecretKey() []byte {
 	return a.secretKey
 }
 
+func (a *AppConfig) GetDSN() string {
+	return a.dsn
+}
+
 func (a *AppConfig) DefineOptionsEnv() {
 	if servAddr, ok := os.LookupEnv("SERVER_ADDRESS"); ok && servAddr != "" {
 		a.serverAddress = servAddr
@@ -92,27 +100,36 @@ func (a *AppConfig) DefineOptionsEnv() {
 		a.fileStoragePath = fileStoragePath
 	}
 
+	if dsn, ok := os.LookupEnv("DATABASE_DSN"); ok && dsn != "" {
+		a.dsn = dsn
+	}
+
 	// проверяем корректность опций
 	a.checkOptions()
 }
 
 func (a *AppConfig) DefineOptionsFlags(args []string) {
 	confFlags, err := parseFlags(args)
+	if err != nil {
+		return
+	}
 
-	if err == nil {
-		if *confFlags.a != "" {
-			a.serverAddress = *confFlags.a
-		}
+	if *confFlags.a != "" {
+		a.serverAddress = *confFlags.a
+	}
 
-		if *confFlags.b != "" {
-			a.baseURL = *confFlags.b
-		} else {
-			a.baseURL = a.serverAddress
-		}
+	if *confFlags.b != "" {
+		a.baseURL = *confFlags.b
+	} else {
+		a.baseURL = a.serverAddress
+	}
 
-		if *confFlags.f != "" {
-			a.fileStoragePath = *confFlags.f
-		}
+	if *confFlags.f != "" {
+		a.fileStoragePath = *confFlags.f
+	}
+
+	if *confFlags.d != "" {
+		a.dsn = *confFlags.d
 	}
 
 	// проверяем корректность опций
@@ -127,6 +144,7 @@ func parseFlags(args []string) (*confFlags, error) {
 	confFlags.a = flags.String("a", "", "SERVER_ADDRESS")
 	confFlags.b = flags.String("b", "", "BASE_URL")
 	confFlags.f = flags.String("f", "", "FILE_STORAGE_PATH")
+	confFlags.d = flags.String("d", "", "DATABASE_DSN")
 
 	err := flags.Parse(args[1:])
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/alaleks/shortener/internal/app/config"
+	"github.com/alaleks/shortener/internal/app/database"
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/alaleks/shortener/internal/app/storage"
 	"github.com/gorilla/mux"
@@ -14,6 +15,7 @@ import (
 
 type Handlers struct {
 	baseURL     string
+	DSN         string
 	DataStorage storage.Storage
 	Users       storage.Users
 	SizeUID     int
@@ -31,6 +33,7 @@ func New(sizeShortUID int, conf config.Configurator) *Handlers {
 		SizeUID:     sizeShortUID,
 		baseURL:     conf.GetBaseURL(),
 		Users:       storage.NewUsers(),
+		DSN:         conf.GetDSN(),
 	}
 
 	if conf.GetFileStoragePath() != "" {
@@ -109,4 +112,20 @@ func (h *Handlers) ParseShortURL(writer http.ResponseWriter, req *http.Request) 
 	h.DataStorage.Update(uid)
 	writer.Header().Set("Location", longURL)
 	writer.WriteHeader(http.StatusTemporaryRedirect)
+}
+
+func (h *Handlers) Ping(writer http.ResponseWriter, req *http.Request) {
+	// host=localhost user=shortener password=3BJ2zWGPbQps dbname=shortener port=5432
+	if h.DSN == "" {
+		writer.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
+
+	err := database.CheckConnect(h.DSN)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
 }

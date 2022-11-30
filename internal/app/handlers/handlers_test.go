@@ -127,3 +127,42 @@ func TestParseShortURL(t *testing.T) {
 		})
 	}
 }
+
+func TestPing(t *testing.T) {
+	// данные для теста
+	tests := []struct {
+		name string
+		code int
+		dsn  string
+	}{
+		{
+			name: "успешное подключение к БД", code: 200,
+			dsn: "host=localhost user=shortener password=3BJ2zWGPbQps dbname=shortener port=5432",
+		},
+		{
+			name: "неуспешное подключение к БД", code: 500,
+			dsn: "host=localhost user=shortener password=wrongPass dbname=shortener port=5432",
+		},
+	}
+
+	for _, v := range tests {
+		item := v
+		t.Setenv("DATABASE_DSN", item.dsn)
+		appConf := config.New(config.Options{Env: true, Flag: false})
+		testHandler := handlers.New(5, appConf)
+		t.Run(item.name, func(t *testing.T) {
+			testRec := httptest.NewRecorder()
+			h := http.HandlerFunc(testHandler.Ping)
+			req := httptest.NewRequest(http.MethodGet, appConf.GetBaseURL(), nil)
+
+			h.ServeHTTP(testRec, req)
+			res := testRec.Result()
+			if res.Body != nil {
+				defer res.Body.Close()
+			}
+			if res.StatusCode != item.code {
+				t.Errorf("status code should be %d but received %d", item.code, res.StatusCode)
+			}
+		})
+	}
+}
