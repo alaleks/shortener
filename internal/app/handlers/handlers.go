@@ -7,7 +7,8 @@ import (
 	"net/http"
 
 	"github.com/alaleks/shortener/internal/app/config"
-	"github.com/alaleks/shortener/internal/app/database"
+	"github.com/alaleks/shortener/internal/app/database/methods"
+	"github.com/alaleks/shortener/internal/app/database/ping"
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/alaleks/shortener/internal/app/storage"
 	"github.com/gorilla/mux"
@@ -47,6 +48,11 @@ func New(sizeShortUID int, conf config.Configurator) *Handlers {
 }
 
 func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
+	var (
+		shortUID string
+		userID   string
+	)
+
 	body, err := io.ReadAll(req.Body)
 
 	if req.Body != nil {
@@ -60,31 +66,38 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 	}
 
 	longURL := string(bytes.TrimSpace(body))
-
-	if longURL == "" {
-		http.Error(writer, ErrEmptyURL.Error(), http.StatusBadRequest)
-
-		return
-	}
-
 	err = service.IsURL(longURL)
+
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
+	if req.URL.User != nil {
+		userID = req.URL.User.Username()
+	}
+
 	writer.WriteHeader(http.StatusCreated)
 
 	// формируем короткую ссылку
 	shortURL := h.baseURL
-	uid := h.DataStorage.Add(longURL, h.SizeUID)
 
-	if req.URL.User != nil {
-		h.Users.AddShortUID(req.URL.User.Username(), uid)
+	if h.DSN != "" {
+		d := methods.NewDB(h.DSN)
+
+		if d.DB != nil {
+			shortUID = service.GenUID(h.SizeUID)
+			d.AddURL(userID, shortUID, longURL)
+
+			defer d.Close()
+		}
+	} else {
+		shortUID = h.DataStorage.Add(longURL, h.SizeUID)
+		h.Users.AddShortUID(userID, shortUID)
 	}
 
-	shortURL += uid
+	shortURL += shortUID
 
 	if _, err := writer.Write([]byte(shortURL)); err != nil {
 		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
@@ -96,20 +109,44 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 func (h *Handlers) ParseShortURL(writer http.ResponseWriter, req *http.Request) {
 	uid := mux.Vars(req)["uid"]
 
+	var longURL string
+	var ok bool
+
 	if uid == "" {
 		http.Error(writer, ErrEmptyURL.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	longURL, ok := h.DataStorage.GetURL(uid)
-	if !ok {
-		http.Error(writer, ErrUIDInvalid.Error(), http.StatusBadRequest)
+	switch h.DSN {
+	case "":
+		longURL, ok = h.DataStorage.GetURL(uid)
 
-		return
+		if !ok {
+			http.Error(writer, ErrUIDInvalid.Error(), http.StatusBadRequest)
+
+			return
+		}
+
+		h.DataStorage.Update(uid)
+	default:
+		d := methods.NewDB(h.DSN)
+
+		if d.DB != nil {
+			longURL = d.GetOriginalURL(uid)
+
+			if longURL == "" {
+				http.Error(writer, ErrUIDInvalid.Error(), http.StatusBadRequest)
+
+				return
+			}
+
+			d.UpdateStat(uid)
+
+			defer d.Close()
+		}
 	}
 
-	h.DataStorage.Update(uid)
 	writer.Header().Set("Location", longURL)
 	writer.WriteHeader(http.StatusTemporaryRedirect)
 }
@@ -122,7 +159,7 @@ func (h *Handlers) Ping(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	err := database.CheckConnect(h.DSN)
+	err := ping.Run(h.DSN)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 

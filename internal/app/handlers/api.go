@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/alaleks/shortener/internal/app/database/methods"
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/gorilla/mux"
 )
@@ -29,17 +30,13 @@ type OutputShorten struct {
 	Success bool   `json:"success"`
 }
 
-type OutputUsersUrls struct {
-	ShotrURL    string `json:"short_url"`
-	OriginalURL string `json:"original_url"`
-}
-
 var ErrInvalidJSON = errors.New(`json is invalid, please check what you send. Should be: {"url":"https://example.ru"}`)
 
 func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) {
 	var (
 		input  InputShorten
 		output OutputShorten
+		userID string
 	)
 
 	body, err := io.ReadAll(req.Body)
@@ -64,15 +61,29 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 		output.Err = ErrInvalidJSON.Error()
 	}
 
+	if req.URL.User != nil {
+		userID = req.URL.User.Username()
+	}
+
 	writer.Header().Set("Content-Type", "application/json")
 
 	if output.Err == "" {
 		output.Success = true
-		uid := h.DataStorage.Add(input.URL, h.SizeUID)
-		output.Result = h.baseURL + uid
+		switch h.DSN {
+		case "":
+			uid := h.DataStorage.Add(input.URL, h.SizeUID)
+			output.Result = h.baseURL + uid
+			h.Users.AddShortUID(userID, uid)
+		default:
+			d := methods.NewDB(h.DSN)
 
-		if req.URL.User != nil {
-			h.Users.AddShortUID(req.URL.User.Username(), uid)
+			if d.DB != nil {
+				uid := service.GenUID(h.SizeUID)
+				output.Result = h.baseURL + uid
+				d.AddURL(userID, uid, input.URL)
+
+				defer d.Close()
+			}
 		}
 
 		writer.WriteHeader(http.StatusCreated)
@@ -93,6 +104,9 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 }
 
 func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
+	var stat Statistics
+	var buffer bytes.Buffer
+
 	uid := mux.Vars(req)["uid"]
 	if uid == "" {
 		http.Error(writer, ErrEmptyURL.Error(), http.StatusBadRequest)
@@ -100,21 +114,36 @@ func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	longURL, counterStat, createdAt := h.DataStorage.Stat(uid)
+	switch h.DSN {
+	case "":
+		longURL, counterStat, createdAt := h.DataStorage.Stat(uid)
 
-	if longURL == "" {
-		http.Error(writer, ErrUIDInvalid.Error(), http.StatusBadRequest)
+		if longURL == "" {
+			http.Error(writer, ErrUIDInvalid.Error(), http.StatusBadRequest)
 
-		return
-	}
+			return
+		}
 
-	var buffer bytes.Buffer
+		stat.ShortURL = h.baseURL + uid
+		stat.LongURL = longURL
+		stat.Usage = counterStat
+		stat.CreatedAt = createdAt
+	default:
+		d := methods.NewDB(h.DSN)
 
-	stat := Statistics{
-		ShortURL:  h.baseURL + uid,
-		LongURL:   longURL,
-		Usage:     counterStat,
-		CreatedAt: createdAt,
+		if d.DB != nil {
+			stat = d.GetStat(uid)
+
+			if stat.LongURL == "" {
+				http.Error(writer, ErrUIDInvalid.Error(), http.StatusBadRequest)
+
+				return
+			}
+
+			stat.ShortURL = h.baseURL + stat.ShortURL
+
+			defer d.Close()
+		}
 	}
 
 	if err := json.NewEncoder(&buffer).Encode(stat); err != nil {
@@ -134,6 +163,10 @@ func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 
 func (h *Handlers) GetUsersURL(writer http.ResponseWriter, req *http.Request) {
 	var buffer bytes.Buffer
+	var out []struct {
+		ShotrURL    string `json:"short_url"`
+		OriginalURL string `json:"original_url"`
+	}
 
 	if req.URL.User == nil {
 		writer.WriteHeader(http.StatusNoContent)
@@ -148,21 +181,45 @@ func (h *Handlers) GetUsersURL(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	uidsShorlURL, _ := h.Users.Check(uint(userID))
+	switch h.DSN {
+	case "":
+		uidsShorlURL, _ := h.Users.Check(uint(userID))
 
-	if len(uidsShorlURL) == 0 {
-		writer.WriteHeader(http.StatusNoContent)
+		if len(uidsShorlURL) == 0 {
+			writer.WriteHeader(http.StatusNoContent)
 
-		return
-	}
+			return
+		}
 
-	out := []OutputUsersUrls{}
+		for _, v := range uidsShorlURL {
+			uri, check := h.DataStorage.GetURL(v)
 
-	for _, v := range uidsShorlURL {
-		uri, check := h.DataStorage.GetURL(v)
+			if check {
+				out = append(out, struct {
+					ShotrURL    string `json:"short_url"`
+					OriginalURL string `json:"original_url"`
+				}{ShotrURL: h.baseURL + v, OriginalURL: uri})
+			}
+		}
+	default:
+		d := methods.NewDB(h.DSN)
 
-		if check {
-			out = append(out, OutputUsersUrls{ShotrURL: h.baseURL + v, OriginalURL: uri})
+		if d.DB != nil {
+			userUrls := d.GetUrlsUserHandler(userID)
+
+			if len(userUrls) == 0 {
+				writer.WriteHeader(http.StatusNoContent)
+
+				return
+			}
+
+			for i := range userUrls {
+				userUrls[i].ShotrURL = h.baseURL + userUrls[i].ShotrURL
+			}
+
+			out = userUrls
+
+			defer d.Close()
 		}
 	}
 

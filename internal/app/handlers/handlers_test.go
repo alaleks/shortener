@@ -150,6 +150,7 @@ func TestPing(t *testing.T) {
 		t.Setenv("DATABASE_DSN", item.dsn)
 		appConf := config.New(config.Options{Env: true, Flag: false})
 		testHandler := handlers.New(5, appConf)
+
 		t.Run(item.name, func(t *testing.T) {
 			testRec := httptest.NewRecorder()
 			h := http.HandlerFunc(testHandler.Ping)

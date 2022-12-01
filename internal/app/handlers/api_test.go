@@ -298,7 +298,7 @@ func TestGetUsersURL(t *testing.T) {
 	// данные для теста
 	appConf := config.New(config.Options{Env: false, Flag: false})
 	testHandler := handlers.New(5, appConf)
-	auth := auth.TurnOn(&testHandler.Users, appConf.GetSecretKey())
+	auth := auth.TurnOn(&testHandler.Users, appConf.GetSecretKey(), appConf.GetDSN())
 	tests := []struct {
 		name string
 		code int
