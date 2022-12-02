@@ -69,7 +69,7 @@ func (a Auth) Authorization(handler http.Handler) http.Handler {
 		var userID uint
 		if authCookie == nil || err != nil {
 			if a.dsn != "" {
-				d := methods.NewDB(a.dsn)
+				d := methods.OpenDB(a.dsn)
 
 				if d.DB != nil {
 					userID = d.AddUser()
@@ -90,7 +90,7 @@ func (a Auth) Authorization(handler http.Handler) http.Handler {
 		userID, err = a.readSigning(authCookie.Value)
 		if err != nil {
 			if a.dsn != "" {
-				d := methods.NewDB(a.dsn)
+				d := methods.OpenDB(a.dsn)
 
 				if d.DB != nil {
 					userID = d.AddUser()

@@ -324,17 +324,17 @@ func TestGetUsersURL(t *testing.T) {
 			t.Parallel()
 
 			testRec := httptest.NewRecorder()
-			h := middleware.New(auth.Authorization).
+			handler := middleware.New(auth.Authorization).
 				Configure(http.HandlerFunc(testHandler.GetUsersURL))
 			req := httptest.NewRequest(http.MethodGet, appConf.GetBaseURL(), nil)
 
 			// тестируем сценарий добавления куки пр сокращении URL
 			if item.url != "" {
 				testRec2 := httptest.NewRecorder()
-				h2 := middleware.New(auth.Authorization).
+				handler2 := middleware.New(auth.Authorization).
 					Configure(http.HandlerFunc(testHandler.ShortenURL))
 				req2 := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL(), bytes.NewBuffer([]byte(item.url)))
-				h2.ServeHTTP(testRec2, req2)
+				handler2.ServeHTTP(testRec2, req2)
 				res2 := testRec2.Result()
 				if res2.Body != nil {
 					defer res2.Body.Close()
@@ -346,10 +346,10 @@ func TestGetUsersURL(t *testing.T) {
 			// здесь меняем куку авторизации
 			if item.url == "wrong" {
 				testRec2 := httptest.NewRecorder()
-				h2 := middleware.New(auth.Authorization).
+				handler2 := middleware.New(auth.Authorization).
 					Configure(http.HandlerFunc(testHandler.ShortenURL))
 				req2 := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL(), bytes.NewBuffer([]byte(item.url)))
-				h2.ServeHTTP(testRec2, req2)
+				handler2.ServeHTTP(testRec2, req2)
 				res2 := testRec2.Result()
 				if res2.Body != nil {
 					defer res2.Body.Close()
@@ -360,7 +360,7 @@ func TestGetUsersURL(t *testing.T) {
 				req.Header = http.Header{"Cookie": testRec2.Header()["Set-Cookie"]}
 			}
 
-			h.ServeHTTP(testRec, req)
+			handler.ServeHTTP(testRec, req)
 			res := testRec.Result()
 			if res.Body != nil {
 				defer res.Body.Close()

@@ -25,9 +25,10 @@ type Consumer interface {
 }
 
 type URLElement struct {
-	CreatedAt  time.Time
-	LongURL    string
-	Statistics uint // short URL usage statistics (actually this is the number of redirects)
+	CreatedAt     time.Time
+	LongURL       string
+	CorrelationID string
+	Statistics    uint // short URL usage statistics (actually this is the number of redirects)
 }
 
 type Urls struct {
@@ -54,6 +55,28 @@ func (u *Urls) Add(longURL string, sizeUID int) string {
 		LongURL:    longURL,
 		CreatedAt:  time.Now(),
 		Statistics: 0,
+	}
+
+	u.mu.Lock()
+	u.data[uid] = element
+	u.mu.Unlock()
+
+	return uid
+}
+
+func (u *Urls) AddBatch(sizeUID int, corID, longURL string) string {
+	if !strings.HasPrefix(longURL, "http") {
+		longURL = "http://" + longURL
+	}
+
+	// генерируем id
+	uid := service.GenUID(sizeUID)
+
+	element := &URLElement{
+		LongURL:       longURL,
+		CreatedAt:     time.Now(),
+		Statistics:    0,
+		CorrelationID: corID,
 	}
 
 	u.mu.Lock()

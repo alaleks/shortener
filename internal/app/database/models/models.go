@@ -13,11 +13,12 @@ type Users struct {
 }
 
 type Urls struct {
-	CreatedAt  time.Time
-	ShortUID   string `gorm:"primaryKey"`
-	LongURL    string
-	Statistics uint
-	UID        uint
+	CreatedAt     time.Time
+	ShortUID      string `gorm:"primaryKey"`
+	CorrelationID string
+	LongURL       string
+	Statistics    uint
+	UID           uint
 }
 
 func Migrate(db *gorm.DB) error {

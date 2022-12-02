@@ -14,18 +14,18 @@ type Database struct {
 	DB *gorm.DB
 }
 
-func NewDB(dsn string) Database {
-	var d Database
+func OpenDB(dsn string) Database {
+	var dBase Database
 
 	db, err := database.Connect(dsn)
 
 	if err != nil {
-		return d
+		return dBase
 	}
 
-	d.DB = db
+	dBase.DB = db
 
-	return d
+	return dBase
 }
 
 func (d Database) Close() error {
@@ -101,24 +101,25 @@ func (d Database) GetUrlsUserHandler(uid int) []struct {
 	ShotrURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
 } {
-	var usersURL []struct {
-		ShotrURL    string `json:"short_url"`
-		OriginalURL string `json:"original_url"`
-	}
 
 	urls := d.GetUrlsUser(uid)
+
+	var usersURL = make([]struct {
+		ShotrURL    string `json:"short_url"`
+		OriginalURL string `json:"original_url"`
+	}, 0, len(urls))
 
 	if len(urls) == 0 {
 		return usersURL
 	}
 
-	for _, v := range urls {
+	for _, item := range urls {
 		usersURL = append(usersURL, struct {
 			ShotrURL    string `json:"short_url"`
 			OriginalURL string `json:"original_url"`
 		}{
-			ShotrURL:    v.ShortUID,
-			OriginalURL: v.LongURL,
+			ShotrURL:    item.ShortUID,
+			OriginalURL: item.LongURL,
 		})
 	}
 
