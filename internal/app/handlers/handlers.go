@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net/http"
 
+	"github.com/alaleks/shortener/internal/app/database/methods"
 	"github.com/alaleks/shortener/internal/app/database/ping"
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/gorilla/mux"
@@ -38,9 +40,14 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 		userID = req.URL.User.Username()
 	}
 
-	writer.WriteHeader(http.StatusCreated)
+	shortURL, err := h.AddShortenURL(userID, longURL)
 
-	shortURL := h.AddShortenURL(userID, longURL)
+	switch errors.Is(err, methods.ErrIsExist) {
+	case true:
+		writer.WriteHeader(http.StatusConflict)
+	case false:
+		writer.WriteHeader(http.StatusCreated)
+	}
 
 	if _, err := writer.Write([]byte(shortURL)); err != nil {
 		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)

@@ -3,10 +3,12 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strconv"
 
+	"github.com/alaleks/shortener/internal/app/database/methods"
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/gorilla/mux"
 )
@@ -46,9 +48,17 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 
 	writer.Header().Set("Content-Type", "application/json")
 
+	shortURL, err := h.AddShortenURL(userID, input.URL)
+	switch errors.Is(err, methods.ErrIsExist) {
+	case true:
+		writer.WriteHeader(http.StatusConflict)
+	case false:
+		writer.WriteHeader(http.StatusCreated)
+	}
+
 	if output.Err == "" {
 		output.Success = true
-		output.Result = h.AddShortenURL(userID, input.URL)
+		output.Result = shortURL
 	}
 
 	res, err := json.Marshal(output)
@@ -57,8 +67,6 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 
 		return
 	}
-
-	writer.WriteHeader(http.StatusCreated)
 
 	if _, err := writer.Write(res); err != nil {
 		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)

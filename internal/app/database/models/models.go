@@ -16,7 +16,7 @@ type Urls struct {
 	CreatedAt     time.Time
 	ShortUID      string `gorm:"primaryKey"`
 	CorrelationID string
-	LongURL       string
+	LongURL       string `gorm:"unique;index"`
 	Statistics    uint
 	UID           uint
 }

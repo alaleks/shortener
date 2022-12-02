@@ -1,6 +1,7 @@
 package methods
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -8,7 +9,10 @@ import (
 	"github.com/alaleks/shortener/internal/app/database"
 	"github.com/alaleks/shortener/internal/app/database/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+var ErrIsExist = errors.New("such an entry exists in the database")
 
 type Database struct {
 	DB *gorm.DB
@@ -18,7 +22,6 @@ func OpenDB(dsn string) Database {
 	var dBase Database
 
 	db, err := database.Connect(dsn)
-
 	if err != nil {
 		return dBase
 	}
@@ -70,13 +73,47 @@ func (d Database) GetUrlsUser(uid int) []models.Urls {
 	return urls
 }
 
-func (d Database) AddURL(userID, shortUID, longURL string) {
+func (d Database) GetShortUID(longURL string) string {
+	var uri models.Urls
+
+	d.DB.Where("long_url = ?", longURL).Find(&uri)
+
+	return uri.ShortUID
+}
+
+func (d Database) AddURL(userID, shortUID, longURL string) (string, error) {
 	userIDtoInt, _ := strconv.Atoi(userID)
 
-	d.DB.Create(&models.Urls{
+	uri := models.Urls{
 		ShortUID: shortUID, LongURL: longURL,
 		CreatedAt: time.Now(), UID: uint(userIDtoInt),
-	})
+	}
+
+	res := d.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&uri)
+
+	if res.RowsAffected == 0 {
+		return d.GetShortUID(longURL), ErrIsExist
+	}
+
+	return uri.ShortUID, nil
+}
+
+func (d Database) AddURLBatch(userID, shortUID, corID, longURL string) string {
+	userIDtoInt, _ := strconv.Atoi(userID)
+
+	uri := models.Urls{
+		ShortUID: shortUID, LongURL: longURL,
+		CreatedAt: time.Now(), UID: uint(userIDtoInt),
+		CorrelationID: corID,
+	}
+
+	res := d.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&uri)
+
+	if res.RowsAffected == 0 {
+		return d.GetShortUID(longURL)
+	}
+
+	return uri.ShortUID
 }
 
 func (d Database) GetOriginalURL(shortUID string) string {
@@ -101,10 +138,9 @@ func (d Database) GetUrlsUserHandler(uid int) []struct {
 	ShotrURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
 } {
-
 	urls := d.GetUrlsUser(uid)
 
-	var usersURL = make([]struct {
+	usersURL := make([]struct {
 		ShotrURL    string `json:"short_url"`
 		OriginalURL string `json:"original_url"`
 	}, 0, len(urls))

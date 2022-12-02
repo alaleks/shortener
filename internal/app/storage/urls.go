@@ -16,6 +16,7 @@ type Storage interface {
 
 type Producer interface {
 	Add(longURL string, sizeUID int) string
+	AddBatch(sizeUID int, corID, longURL string) string
 	Update(uid string) bool
 }
 

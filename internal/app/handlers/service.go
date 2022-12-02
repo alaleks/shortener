@@ -5,7 +5,7 @@ import (
 	"github.com/alaleks/shortener/internal/app/service"
 )
 
-func (h *Handlers) AddShortenURL(userID, longURL string) string {
+func (h *Handlers) AddShortenURL(userID, longURL string) (string, error) {
 	var (
 		shortURL = h.baseURL
 		shortUID string
@@ -18,12 +18,10 @@ func (h *Handlers) AddShortenURL(userID, longURL string) string {
 		if dBase.DB != nil {
 			defer dBase.Close()
 
-			shortUID = service.GenUID(h.SizeUID)
-			dBase.AddURL(userID, shortUID, longURL)
-
+			shortUID, err := dBase.AddURL(userID, service.GenUID(h.SizeUID), longURL)
 			shortURL += shortUID
 
-			return shortURL
+			return shortURL, err
 		}
 
 		fallthrough
@@ -34,7 +32,7 @@ func (h *Handlers) AddShortenURL(userID, longURL string) string {
 
 		shortURL += shortUID
 
-		return shortURL
+		return shortURL, nil
 	}
 }
 
@@ -173,9 +171,7 @@ func (h *Handlers) ProcessingURLBatch(userID string, input []InShortenBatch) ([]
 				err := service.IsURL(item.OriginalURL)
 
 				if err == nil {
-					shortUID := service.GenUID(h.SizeUID)
-					dBase.AddURL(userID, shortUID, item.OriginalURL)
-
+					shortUID := dBase.AddURLBatch(userID, service.GenUID(h.SizeUID), item.CorID, item.OriginalURL)
 					out = append(out, OutShortenBatch{CorID: item.CorID, ShortURL: h.baseURL + shortUID})
 				} else {
 					out = append(out, OutShortenBatch{CorID: item.CorID, Err: err.Error()})
@@ -195,7 +191,7 @@ func (h *Handlers) ProcessingURLBatch(userID string, input []InShortenBatch) ([]
 			err := service.IsURL(item.OriginalURL)
 
 			if err == nil {
-				shortUID := h.DataStorage.Add(item.OriginalURL, h.SizeUID)
+				shortUID := h.DataStorage.AddBatch(h.SizeUID, item.CorID, item.OriginalURL)
 
 				h.Users.AddShortUID(userID, shortUID)
 
