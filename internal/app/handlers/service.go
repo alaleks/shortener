@@ -11,10 +11,10 @@ func (h *Handlers) AddShortenURL(userID, longURL string) (string, error) {
 	)
 
 	if err := h.PingDB(); err != nil {
-		h.checkDb = false
+		h.checkDB = false
 	}
 
-	if h.checkDb {
+	if h.checkDB {
 		shortUID, err := h.DB.AddURL(userID, service.GenUID(h.SizeUID), longURL)
 		shortURL += shortUID
 
@@ -32,10 +32,10 @@ func (h *Handlers) AddShortenURL(userID, longURL string) (string, error) {
 
 func (h *Handlers) GetOriginalURL(uid string) (string, error) {
 	if err := h.PingDB(); err != nil {
-		h.checkDb = false
+		h.checkDB = false
 	}
 
-	if h.checkDb {
+	if h.checkDB {
 		longURL := h.DB.GetOriginalURL(uid)
 
 		if longURL == "" {
@@ -58,10 +58,10 @@ func (h *Handlers) GetOriginalURL(uid string) (string, error) {
 
 func (h *Handlers) Statistics(uid string) (Statistics, error) {
 	if err := h.PingDB(); err != nil {
-		h.checkDb = false
+		h.checkDB = false
 	}
 
-	if h.checkDb {
+	if h.checkDB {
 		stat := h.DB.GetStat(uid)
 
 		if stat.LongURL == "" {
@@ -94,10 +94,10 @@ func (h *Handlers) GetAllUrlsUser(userID int) ([]struct {
 }, error,
 ) {
 	if err := h.PingDB(); err != nil {
-		h.checkDb = false
+		h.checkDB = false
 	}
 
-	if h.checkDb {
+	if h.checkDB {
 		userUrls := h.DB.GetUrlsUserHandler(userID)
 
 		if len(userUrls) == 0 {
@@ -140,10 +140,10 @@ func (h *Handlers) ProcessingURLBatch(userID string, input []InShortenBatch) ([]
 	out := make([]OutShortenBatch, 0, len(input))
 
 	if err := h.PingDB(); err != nil {
-		h.checkDb = false
+		h.checkDB = false
 	}
 
-	if h.checkDb {
+	if h.checkDB {
 		for _, item := range input {
 			err := service.IsURL(item.OriginalURL)
 

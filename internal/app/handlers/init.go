@@ -14,7 +14,7 @@ type Handlers struct {
 	DB          *methods.Database
 	DataStorage storage.Storage
 	Users       storage.Users
-	checkDb     bool
+	checkDB     bool
 	SizeUID     int
 }
 
@@ -76,7 +76,7 @@ func New(sizeShortUID int, conf config.Configurator) *Handlers {
 		err := handlers.ConnectDB()
 
 		if err == nil {
-			handlers.checkDb = true
+			handlers.checkDB = true
 		}
 	}
 

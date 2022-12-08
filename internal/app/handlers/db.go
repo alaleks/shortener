@@ -19,13 +19,13 @@ func (h *Handlers) ConnectDB() error {
 	}
 
 	h.DB = &methods.Database{SDB: db}
-	h.checkDb = true
+	h.checkDB = true
 
 	return nil
 }
 
 func (h *Handlers) PingDB() error {
-	if !h.checkDb {
+	if !h.checkDB {
 		return ErrDatabaseConnection
 	}
 
@@ -45,7 +45,7 @@ func (h *Handlers) PingDB() error {
 }
 
 func (h *Handlers) CloseDB() error {
-	if !h.checkDb {
+	if !h.checkDB {
 		return nil
 	}
 
