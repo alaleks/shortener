@@ -86,7 +86,7 @@ func (d Database) AddURL(userID, shortUID, longURL string) (string, error) {
 		uri.UID = uint(userIDtoInt)
 	}
 
-	rowsAffected := WriteURL(d.SDB, uri)
+	rowsAffected := writeURL(d.SDB, uri)
 
 	if rowsAffected == 0 {
 		return d.GetShortUID(longURL), ErrAlreadyExists
@@ -95,7 +95,7 @@ func (d Database) AddURL(userID, shortUID, longURL string) (string, error) {
 	return uri.ShortUID, nil
 }
 
-func WriteURL(db *gorm.DB, uri models.Urls) int {
+func writeURL(db *gorm.DB, uri models.Urls) int {
 	res := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&uri)
 
 	return int(res.RowsAffected)
@@ -113,7 +113,7 @@ func (d Database) AddURLBatch(userID, shortUID, corID, longURL string) string {
 		uri.UID = uint(userIDtoInt)
 	}
 
-	rowsAffected := WriteURLBatch(d.SDB, uri)
+	rowsAffected := writeURLBatch(d.SDB, uri)
 
 	if rowsAffected == 0 {
 		return d.GetShortUID(longURL)
@@ -122,7 +122,7 @@ func (d Database) AddURLBatch(userID, shortUID, corID, longURL string) string {
 	return uri.ShortUID
 }
 
-func WriteURLBatch(db *gorm.DB, uri models.Urls) int {
+func writeURLBatch(db *gorm.DB, uri models.Urls) int {
 	res := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&uri)
 
 	return int(res.RowsAffected)
