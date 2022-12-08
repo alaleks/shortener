@@ -23,9 +23,8 @@ func (u *Users) Check(uid uint) ([]string, bool) {
 }
 
 func (u *Users) Create() uint {
-	uid := u.genUserID()
-
 	u.mu.Lock()
+	uid := uint(len(u.data) + 1)
 	u.data[uid] = make([]string, 0)
 	u.mu.Unlock()
 
@@ -41,12 +40,4 @@ func (u *Users) AddShortUID(uid, uidShortURL string) {
 	u.mu.Lock()
 	u.data[uint(uidToInt)] = append(u.data[uint(uidToInt)], uidShortURL)
 	u.mu.Unlock()
-}
-
-func (u *Users) genUserID() uint {
-	u.mu.Lock()
-	uid := len(u.data) + 1
-	u.mu.Unlock()
-
-	return uint(uid)
 }

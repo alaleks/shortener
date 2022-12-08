@@ -140,6 +140,7 @@ func TestSetEnv(t *testing.T) {
 	t.Setenv("SERVER_ADDRESS", "localhost:9090")
 	t.Setenv("BASE_URL", "http://example.ru/")
 	t.Setenv("FILE_STORAGE_PATH", "./storage")
+	t.Setenv("DATABASE_DSN", "")
 
 	// настройки для теста
 	appConf := config.New(config.Options{Env: true, Flag: false})
@@ -298,7 +299,7 @@ func TestGetUsersURL(t *testing.T) {
 	// данные для теста
 	appConf := config.New(config.Options{Env: false, Flag: false})
 	testHandler := handlers.New(5, appConf)
-	auth := auth.TurnOn(&testHandler.Users, appConf.GetSecretKey(), appConf.GetDSN())
+	auth := auth.TurnOn(&testHandler.Users, appConf.GetSecretKey(), testHandler)
 	tests := []struct {
 		name string
 		code int

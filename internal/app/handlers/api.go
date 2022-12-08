@@ -22,10 +22,6 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 
 	body, err := io.ReadAll(req.Body)
 
-	if req.Body != nil {
-		defer req.Body.Close()
-	}
-
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
@@ -39,7 +35,7 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 	}
 
 	if err := service.IsURL(input.URL); err != nil {
-		output.Err = ErrInvalidJSON.Error()
+		output.Err = ErrInvalidRequest.Error()
 	}
 
 	if req.URL.User != nil {
@@ -49,10 +45,13 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 	writer.Header().Set("Content-Type", "application/json")
 
 	shortURL, err := h.AddShortenURL(userID, input.URL)
-	switch errors.Is(err, methods.ErrIsExist) {
+
+	// если ошибка соот-т ErrAlreadyExists, то устанавливаем статус 409
+	// в противном случае - статус 201
+	switch errors.Is(err, methods.ErrAlreadyExists) {
 	case true:
 		writer.WriteHeader(http.StatusConflict)
-	case false:
+	default:
 		writer.WriteHeader(http.StatusCreated)
 	}
 
@@ -69,7 +68,7 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 	}
 
 	if _, err := writer.Write(res); err != nil {
-		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
+		http.Error(writer, ErrInternalError.Error(), http.StatusBadRequest)
 
 		return
 	}
@@ -104,7 +103,7 @@ func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 	writer.Header().Set("Content-Type", "application/json")
 
 	if _, err := writer.Write(buffer.Bytes()); err != nil {
-		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
+		http.Error(writer, ErrInternalError.Error(), http.StatusBadRequest)
 
 		return
 	}
@@ -142,7 +141,7 @@ func (h *Handlers) GetUsersURL(writer http.ResponseWriter, req *http.Request) {
 	writer.Header().Set("Content-Type", "application/json")
 
 	if _, err := writer.Write(buffer.Bytes()); err != nil {
-		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
+		http.Error(writer, ErrInternalError.Error(), http.StatusBadRequest)
 
 		return
 	}
@@ -159,10 +158,6 @@ func (h *Handlers) ShortenURLBatch(writer http.ResponseWriter, req *http.Request
 	}
 
 	body, err := io.ReadAll(req.Body)
-
-	if req.Body != nil {
-		defer req.Body.Close()
-	}
 
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
@@ -196,7 +191,7 @@ func (h *Handlers) ShortenURLBatch(writer http.ResponseWriter, req *http.Request
 	writer.WriteHeader(http.StatusCreated)
 
 	if _, err := writer.Write(res); err != nil {
-		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
+		http.Error(writer, ErrInternalError.Error(), http.StatusBadRequest)
 
 		return
 	}

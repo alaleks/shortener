@@ -17,10 +17,10 @@ type writerGzip struct {
 func (w writerGzip) Write(b []byte) (int, error) {
 	n, err := w.Writer.Write(b)
 	if err != nil {
-		err = fmt.Errorf("failed write gzip: %w", err)
+		return 0, fmt.Errorf("failed write gzip: %w", err)
 	}
 
-	return n, err
+	return n, nil
 }
 
 type readerCloserGzip struct {

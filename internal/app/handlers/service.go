@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"github.com/alaleks/shortener/internal/app/database/methods"
 	"github.com/alaleks/shortener/internal/app/service"
 )
 
@@ -11,190 +10,145 @@ func (h *Handlers) AddShortenURL(userID, longURL string) (string, error) {
 		shortUID string
 	)
 
-	switch {
-	case h.DSN != "":
-		dBase := methods.OpenDB(h.DSN)
+	if err := h.PingDB(); err != nil {
+		h.checkDb = false
+	}
 
-		if dBase.DB != nil {
-			defer dBase.Close()
-
-			shortUID, err := dBase.AddURL(userID, service.GenUID(h.SizeUID), longURL)
-			shortURL += shortUID
-
-			return shortURL, err
-		}
-
-		fallthrough
-	default:
-		shortUID = h.DataStorage.Add(longURL, h.SizeUID)
-
-		h.Users.AddShortUID(userID, shortUID)
-
+	if h.checkDb {
+		shortUID, err := h.DB.AddURL(userID, service.GenUID(h.SizeUID), longURL)
 		shortURL += shortUID
 
-		return shortURL, nil
+		return shortURL, err
 	}
+
+	shortUID = h.DataStorage.Add(longURL, h.SizeUID)
+
+	h.Users.AddShortUID(userID, shortUID)
+
+	shortURL += shortUID
+
+	return shortURL, nil
 }
 
 func (h *Handlers) GetOriginalURL(uid string) (string, error) {
-	switch {
-	case h.DSN != "":
-		dBase := methods.OpenDB(h.DSN)
+	if err := h.PingDB(); err != nil {
+		h.checkDb = false
+	}
 
-		if dBase.DB != nil {
-			defer dBase.Close()
+	if h.checkDb {
+		longURL := h.DB.GetOriginalURL(uid)
 
-			longURL := dBase.GetOriginalURL(uid)
-
-			if longURL == "" {
-				return longURL, ErrUIDInvalid
-			}
-
-			dBase.UpdateStat(uid)
-
-			return longURL, nil
+		if longURL == "" {
+			return longURL, ErrInvalidUID
 		}
 
-		fallthrough
-	default:
-		longURL, ok := h.DataStorage.GetURL(uid)
-
-		if !ok {
-			return longURL, ErrUIDInvalid
-		}
+		h.DB.UpdateStat(uid)
 
 		return longURL, nil
 	}
+
+	longURL, ok := h.DataStorage.GetURL(uid)
+
+	if !ok {
+		return longURL, ErrInvalidUID
+	}
+
+	return longURL, nil
 }
 
 func (h *Handlers) Statistics(uid string) (Statistics, error) {
-	switch {
-	case h.DSN != "":
-		dBase := methods.OpenDB(h.DSN)
+	if err := h.PingDB(); err != nil {
+		h.checkDb = false
+	}
 
-		if dBase.DB != nil {
-			defer dBase.Close()
+	if h.checkDb {
+		stat := h.DB.GetStat(uid)
 
-			stat := dBase.GetStat(uid)
-
-			if stat.LongURL == "" {
-				return stat, ErrUIDInvalid
-			}
-
-			stat.ShortURL = h.baseURL + stat.ShortURL
-
-			return stat, nil
+		if stat.LongURL == "" {
+			return stat, ErrInvalidUID
 		}
 
-		fallthrough
-	default:
-		var stat Statistics
-		longURL, counterStat, createdAt := h.DataStorage.Stat(uid)
-
-		if longURL == "" {
-			return stat, ErrUIDInvalid
-		}
-
-		stat.ShortURL = h.baseURL + uid
-		stat.LongURL = longURL
-		stat.Usage = counterStat
-		stat.CreatedAt = createdAt
+		stat.ShortURL = h.baseURL + stat.ShortURL
 
 		return stat, nil
 	}
+
+	var stat Statistics
+	longURL, counterStat, createdAt := h.DataStorage.Stat(uid)
+
+	if longURL == "" {
+		return stat, ErrInvalidUID
+	}
+
+	stat.ShortURL = h.baseURL + uid
+	stat.LongURL = longURL
+	stat.Usage = counterStat
+	stat.CreatedAt = createdAt
+
+	return stat, nil
 }
 
 func (h *Handlers) GetAllUrlsUser(userID int) ([]struct {
-	ShotrURL    string `json:"short_url"`
+	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
 }, error,
 ) {
-	switch {
-	case h.DSN != "":
-		dBase := methods.OpenDB(h.DSN)
+	if err := h.PingDB(); err != nil {
+		h.checkDb = false
+	}
 
-		if dBase.DB != nil {
-			defer dBase.Close()
+	if h.checkDb {
+		userUrls := h.DB.GetUrlsUserHandler(userID)
 
-			userUrls := dBase.GetUrlsUserHandler(userID)
-
-			if len(userUrls) == 0 {
-				return userUrls, ErrGetUrlsUser
-			}
-
-			for index := range userUrls {
-				userUrls[index].ShotrURL = h.baseURL + userUrls[index].ShotrURL
-			}
-
-			return userUrls, nil
+		if len(userUrls) == 0 {
+			return userUrls, ErrUserDoesNotExist
 		}
 
-		fallthrough
-	default:
-		var userUrls []struct {
-			ShotrURL    string `json:"short_url"`
-			OriginalURL string `json:"original_url"`
-		}
-
-		uidsShorlURL, _ := h.Users.Check(uint(userID))
-
-		if len(uidsShorlURL) == 0 {
-			return userUrls, ErrGetUrlsUser
-		}
-
-		for _, item := range uidsShorlURL {
-			uri, check := h.DataStorage.GetURL(item)
-
-			if check {
-				userUrls = append(userUrls, struct {
-					ShotrURL    string `json:"short_url"`
-					OriginalURL string `json:"original_url"`
-				}{ShotrURL: h.baseURL + item, OriginalURL: uri})
-			}
+		for index := range userUrls {
+			userUrls[index].ShortURL = h.baseURL + userUrls[index].ShortURL
 		}
 
 		return userUrls, nil
 	}
+
+	var userUrls []struct {
+		ShortURL    string `json:"short_url"`
+		OriginalURL string `json:"original_url"`
+	}
+
+	uidsShorlURL, _ := h.Users.Check(uint(userID))
+
+	if len(uidsShorlURL) == 0 {
+		return userUrls, ErrUserDoesNotExist
+	}
+
+	for _, item := range uidsShorlURL {
+		uri, check := h.DataStorage.GetURL(item)
+
+		if check {
+			userUrls = append(userUrls, struct {
+				ShortURL    string `json:"short_url"`
+				OriginalURL string `json:"original_url"`
+			}{ShortURL: h.baseURL + item, OriginalURL: uri})
+		}
+	}
+
+	return userUrls, nil
 }
 
 func (h *Handlers) ProcessingURLBatch(userID string, input []InShortenBatch) ([]OutShortenBatch, error) {
 	out := make([]OutShortenBatch, 0, len(input))
 
-	switch {
-	case h.DSN != "":
-		dBase := methods.OpenDB(h.DSN)
+	if err := h.PingDB(); err != nil {
+		h.checkDb = false
+	}
 
-		if dBase.DB != nil {
-			defer dBase.Close()
-
-			for _, item := range input {
-				err := service.IsURL(item.OriginalURL)
-
-				if err == nil {
-					shortUID := dBase.AddURLBatch(userID, service.GenUID(h.SizeUID), item.CorID, item.OriginalURL)
-					out = append(out, OutShortenBatch{CorID: item.CorID, ShortURL: h.baseURL + shortUID})
-				} else {
-					out = append(out, OutShortenBatch{CorID: item.CorID, Err: err.Error()})
-				}
-			}
-
-			if len(out) == 0 {
-				return out, ErrEmptyBatch
-			}
-
-			return out, nil
-		}
-
-		fallthrough
-	default:
+	if h.checkDb {
 		for _, item := range input {
 			err := service.IsURL(item.OriginalURL)
 
 			if err == nil {
-				shortUID := h.DataStorage.AddBatch(h.SizeUID, item.CorID, item.OriginalURL)
-
-				h.Users.AddShortUID(userID, shortUID)
-
+				shortUID := h.DB.AddURLBatch(userID, service.GenUID(h.SizeUID), item.CorID, item.OriginalURL)
 				out = append(out, OutShortenBatch{CorID: item.CorID, ShortURL: h.baseURL + shortUID})
 			} else {
 				out = append(out, OutShortenBatch{CorID: item.CorID, Err: err.Error()})
@@ -207,4 +161,24 @@ func (h *Handlers) ProcessingURLBatch(userID string, input []InShortenBatch) ([]
 
 		return out, nil
 	}
+
+	for _, item := range input {
+		err := service.IsURL(item.OriginalURL)
+
+		if err == nil {
+			shortUID := h.DataStorage.AddBatch(h.SizeUID, item.CorID, item.OriginalURL)
+
+			h.Users.AddShortUID(userID, shortUID)
+
+			out = append(out, OutShortenBatch{CorID: item.CorID, ShortURL: h.baseURL + shortUID})
+		} else {
+			out = append(out, OutShortenBatch{CorID: item.CorID, Err: err.Error()})
+		}
+	}
+
+	if len(out) == 0 {
+		return out, ErrEmptyBatch
+	}
+
+	return out, nil
 }

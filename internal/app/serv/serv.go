@@ -37,7 +37,7 @@ func New(sizeUID int) *AppServer {
 		appConf    config.Configurator = config.New(config.Options{Env: true, Flag: true})
 		appHandler                     = handlers.New(sizeUID, appConf)
 		auth                           = auth.TurnOn(&appHandler.Users,
-			appConf.GetSecretKey(), appHandler.DSN)
+			appConf.GetSecretKey(), appHandler)
 	)
 
 	if appConf.GetDSN() != "" {
@@ -96,9 +96,17 @@ func catchSignal(appServer *AppServer) {
 				}
 			}
 
+			if err := appServer.handlers.CloseDB(); err != nil {
+				log.Fatal(err)
+			}
+
 			log.Fatal(appServer.server.Shutdown(context.Background()))
 		case <-reloadSignals:
 			if err := appServer.handlers.DataStorage.Write(fileStoragePath); err != nil {
+				log.Fatal(err)
+			}
+
+			if err := appServer.handlers.CloseDB(); err != nil {
 				log.Fatal(err)
 			}
 		}

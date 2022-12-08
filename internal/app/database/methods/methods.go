@@ -12,31 +12,24 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-var ErrIsExist = errors.New("such an entry exists in the database")
+var ErrAlreadyExists = errors.New("such an entry exists in the database")
 
 type Database struct {
-	DB *gorm.DB
+	SDB *gorm.DB
 }
 
-func OpenDB(dsn string) Database {
-	var dBase Database
-
+func OpenDB(dsn string) (Database, error) {
 	db, err := database.Connect(dsn)
-	if err != nil {
-		return dBase
-	}
 
-	dBase.DB = db
-
-	return dBase
+	return Database{SDB: db}, err
 }
 
 func (d Database) Close() error {
-	if d.DB == nil {
+	if d.SDB == nil {
 		return nil
 	}
 
-	dbInstance, err := d.DB.DB()
+	dbInstance, err := d.SDB.DB()
 	if err != nil {
 		return fmt.Errorf("error getting database instance: %w", err)
 	}
@@ -52,7 +45,7 @@ func (d Database) Close() error {
 func (d Database) GetUser(uid int) models.Users {
 	var user models.Users
 
-	d.DB.Where("uid = ?", uid).First(&user)
+	d.SDB.Where("uid = ?", uid).First(&user)
 
 	return user
 }
@@ -60,7 +53,7 @@ func (d Database) GetUser(uid int) models.Users {
 func (d Database) AddUser() uint {
 	user := models.Users{CreatedAt: time.Now()}
 
-	d.DB.Create(&user)
+	d.SDB.Create(&user)
 
 	return user.UID
 }
@@ -68,7 +61,7 @@ func (d Database) AddUser() uint {
 func (d Database) GetUrlsUser(uid int) []models.Urls {
 	var urls []models.Urls
 
-	d.DB.Where("uid = ?", uid).Find(&urls)
+	d.SDB.Where("uid = ?", uid).Find(&urls)
 
 	return urls
 }
@@ -76,50 +69,69 @@ func (d Database) GetUrlsUser(uid int) []models.Urls {
 func (d Database) GetShortUID(longURL string) string {
 	var uri models.Urls
 
-	d.DB.Where("long_url = ?", longURL).Find(&uri)
+	d.SDB.Where("long_url = ?", longURL).Find(&uri)
 
 	return uri.ShortUID
 }
 
 func (d Database) AddURL(userID, shortUID, longURL string) (string, error) {
-	userIDtoInt, _ := strconv.Atoi(userID)
+	userIDtoInt, err := strconv.Atoi(userID)
 
 	uri := models.Urls{
 		ShortUID: shortUID, LongURL: longURL,
-		CreatedAt: time.Now(), UID: uint(userIDtoInt),
+		CreatedAt: time.Now(),
 	}
 
-	res := d.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&uri)
+	if err == nil {
+		uri.UID = uint(userIDtoInt)
+	}
 
-	if res.RowsAffected == 0 {
-		return d.GetShortUID(longURL), ErrIsExist
+	rowsAffected := WriteURL(d.SDB, uri)
+
+	if rowsAffected == 0 {
+		return d.GetShortUID(longURL), ErrAlreadyExists
 	}
 
 	return uri.ShortUID, nil
 }
 
+func WriteURL(db *gorm.DB, uri models.Urls) int {
+	res := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&uri)
+
+	return int(res.RowsAffected)
+}
+
 func (d Database) AddURLBatch(userID, shortUID, corID, longURL string) string {
-	userIDtoInt, _ := strconv.Atoi(userID)
+	userIDtoInt, err := strconv.Atoi(userID)
 
 	uri := models.Urls{
 		ShortUID: shortUID, LongURL: longURL,
-		CreatedAt: time.Now(), UID: uint(userIDtoInt),
-		CorrelationID: corID,
+		CreatedAt: time.Now(),
 	}
 
-	res := d.DB.Clauses(clause.OnConflict{DoNothing: true}).Create(&uri)
+	if err == nil {
+		uri.UID = uint(userIDtoInt)
+	}
 
-	if res.RowsAffected == 0 {
+	rowsAffected := WriteURLBatch(d.SDB, uri)
+
+	if rowsAffected == 0 {
 		return d.GetShortUID(longURL)
 	}
 
 	return uri.ShortUID
 }
 
+func WriteURLBatch(db *gorm.DB, uri models.Urls) int {
+	res := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&uri)
+
+	return int(res.RowsAffected)
+}
+
 func (d Database) GetOriginalURL(shortUID string) string {
 	var url models.Urls
 
-	d.DB.Where("short_uid = ?", shortUID).First(&url)
+	d.SDB.Where("short_uid = ?", shortUID).First(&url)
 
 	return url.LongURL
 }
@@ -127,21 +139,21 @@ func (d Database) GetOriginalURL(shortUID string) string {
 func (d Database) UpdateStat(shortUID string) {
 	var url models.Urls
 
-	d.DB.Where("short_uid = ?", shortUID).First(&url)
+	d.SDB.Where("short_uid = ?", shortUID).First(&url)
 
 	url.Statistics++
 
-	d.DB.Save(&url)
+	d.SDB.Save(&url)
 }
 
 func (d Database) GetUrlsUserHandler(uid int) []struct {
-	ShotrURL    string `json:"short_url"`
+	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
 } {
 	urls := d.GetUrlsUser(uid)
 
 	usersURL := make([]struct {
-		ShotrURL    string `json:"short_url"`
+		ShortURL    string `json:"short_url"`
 		OriginalURL string `json:"original_url"`
 	}, 0, len(urls))
 
@@ -151,10 +163,10 @@ func (d Database) GetUrlsUserHandler(uid int) []struct {
 
 	for _, item := range urls {
 		usersURL = append(usersURL, struct {
-			ShotrURL    string `json:"short_url"`
+			ShortURL    string `json:"short_url"`
 			OriginalURL string `json:"original_url"`
 		}{
-			ShotrURL:    item.ShortUID,
+			ShortURL:    item.ShortUID,
 			OriginalURL: item.LongURL,
 		})
 	}
@@ -165,20 +177,20 @@ func (d Database) GetUrlsUserHandler(uid int) []struct {
 func (d Database) GetStat(shortUID string) struct {
 	ShortURL  string `json:"shorturl"`
 	LongURL   string `json:"longurl"`
-	Usage     uint   `json:"usage"`
 	CreatedAt string `json:"createdAt"`
+	Usage     uint   `json:"usage"`
 } {
 	var (
 		url  models.Urls
 		stat struct {
 			ShortURL  string `json:"shorturl"`
 			LongURL   string `json:"longurl"`
-			Usage     uint   `json:"usage"`
 			CreatedAt string `json:"createdAt"`
+			Usage     uint   `json:"usage"`
 		}
 	)
 
-	d.DB.Where("short_uid = ?", shortUID).First(&url)
+	d.SDB.Where("short_uid = ?", shortUID).First(&url)
 
 	if url.LongURL == "" {
 		return stat

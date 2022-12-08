@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/alaleks/shortener/internal/app/database/methods"
+	"github.com/alaleks/shortener/internal/app/handlers"
 	"github.com/alaleks/shortener/internal/app/storage"
 )
 
@@ -24,14 +24,14 @@ const (
 type Auth struct {
 	users     *storage.Users
 	secretKey []byte
-	dsn       string
+	handlers  *handlers.Handlers
 }
 
-func TurnOn(users *storage.Users, secretKey []byte, dsn string) Auth {
-	return Auth{users: users, secretKey: secretKey, dsn: dsn}
+func TurnOn(users *storage.Users, secretKey []byte, handlers *handlers.Handlers) Auth {
+	return Auth{users: users, secretKey: secretKey, handlers: handlers}
 }
 
-func (a Auth) createSigning(uid uint) string {
+func (a *Auth) createSigning(uid uint) string {
 	mac := hmac.New(sha256.New, a.secretKey)
 	mac.Write([]byte(strconv.Itoa(int(uid))))
 	signature := mac.Sum(nil)
@@ -40,7 +40,7 @@ func (a Auth) createSigning(uid uint) string {
 	return base64.URLEncoding.EncodeToString(signature)
 }
 
-func (a Auth) readSigning(cookieVal string) (uint, error) {
+func (a *Auth) readSigning(cookieVal string) (uint, error) {
 	signedVal, err := base64.URLEncoding.DecodeString(cookieVal)
 	if err != nil {
 		return 0, fmt.Errorf("cookie decoding error: %w", err)
@@ -63,19 +63,14 @@ func (a Auth) readSigning(cookieVal string) (uint, error) {
 	return uint(uid), nil
 }
 
-func (a Auth) Authorization(handler http.Handler) http.Handler {
+func (a *Auth) Authorization(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
 		authCookie, err := getCookie(req, cookieName)
 		var userID uint
+
 		if authCookie == nil || err != nil {
-			if a.dsn != "" {
-				d := methods.OpenDB(a.dsn)
-
-				if d.DB != nil {
-					userID = d.AddUser()
-
-					defer d.Close()
-				}
+			if a.handlers.PingDB() == nil {
+				userID = a.handlers.DB.AddUser()
 			} else {
 				userID = a.users.Create()
 			}
@@ -89,17 +84,12 @@ func (a Auth) Authorization(handler http.Handler) http.Handler {
 
 		userID, err = a.readSigning(authCookie.Value)
 		if err != nil {
-			if a.dsn != "" {
-				d := methods.OpenDB(a.dsn)
-
-				if d.DB != nil {
-					userID = d.AddUser()
-
-					defer d.Close()
-				}
+			if a.handlers.PingDB() == nil {
+				userID = a.handlers.DB.AddUser()
 			} else {
 				userID = a.users.Create()
 			}
+
 			setCookie(writer, req, a.createSigning(userID))
 			req.URL.User = url.User(strconv.Itoa(int(userID)))
 			handler.ServeHTTP(writer, req)

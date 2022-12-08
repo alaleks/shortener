@@ -4,32 +4,35 @@ import (
 	"errors"
 
 	"github.com/alaleks/shortener/internal/app/config"
+	"github.com/alaleks/shortener/internal/app/database/methods"
 	"github.com/alaleks/shortener/internal/app/storage"
 )
 
 type Handlers struct {
 	baseURL     string
 	DSN         string
+	DB          *methods.Database
 	DataStorage storage.Storage
 	Users       storage.Users
+	checkDb     bool
 	SizeUID     int
 }
 
 var (
-	ErrEmptyURL    = errors.New("url is empty")
-	ErrWriter      = errors.New("sorry, an error has occurred, please try again")
-	ErrUIDInvalid  = errors.New("short url is invalid")
-	ErrInvalidJSON = errors.New(`json is invalid, please check what you send. 
+	ErrEmptyURL       = errors.New("url is empty")
+	ErrInternalError  = errors.New("sorry, an error has occurred, please try again")
+	ErrInvalidUID     = errors.New("short url is invalid")
+	ErrInvalidRequest = errors.New(`json is invalid, please check what you send. 
 	Should be: {"url":"https://example.ru"}`)
-	ErrGetUrlsUser = errors.New("user did not use the service")
-	ErrEmptyBatch  = errors.New("URL batching error, please check the source data")
+	ErrUserDoesNotExist = errors.New("user did not use the service")
+	ErrEmptyBatch       = errors.New("URL batching error, please check the source data")
 )
 
 type Statistics struct {
 	ShortURL  string `json:"shorturl"`
 	LongURL   string `json:"longurl"`
-	Usage     uint   `json:"usage"`
 	CreatedAt string `json:"createdAt"`
+	Usage     uint   `json:"usage"`
 }
 
 type InputShorten struct {
@@ -66,6 +69,14 @@ func New(sizeShortUID int, conf config.Configurator) *Handlers {
 		err := handlers.DataStorage.Read(conf.GetFileStoragePath())
 		if err != nil {
 			return &handlers
+		}
+	}
+
+	if handlers.DSN != "" {
+		err := handlers.ConnectDB()
+
+		if err == nil {
+			handlers.checkDb = true
 		}
 	}
 

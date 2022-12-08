@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/alaleks/shortener/internal/app/database/methods"
-	"github.com/alaleks/shortener/internal/app/database/ping"
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/gorilla/mux"
 )
@@ -16,10 +15,6 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 	var userID string
 
 	body, err := io.ReadAll(req.Body)
-
-	if req.Body != nil {
-		defer req.Body.Close()
-	}
 
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
@@ -42,15 +37,17 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 
 	shortURL, err := h.AddShortenURL(userID, longURL)
 
-	switch errors.Is(err, methods.ErrIsExist) {
+	// если ошибка соот-т ErrAlreadyExists, то устанавливаем статус 409
+	// в противном случае - статус 201
+	switch errors.Is(err, methods.ErrAlreadyExists) {
 	case true:
 		writer.WriteHeader(http.StatusConflict)
-	case false:
+	default:
 		writer.WriteHeader(http.StatusCreated)
 	}
 
 	if _, err := writer.Write([]byte(shortURL)); err != nil {
-		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
+		http.Error(writer, ErrInternalError.Error(), http.StatusBadRequest)
 
 		return
 	}
@@ -77,14 +74,9 @@ func (h *Handlers) ParseShortURL(writer http.ResponseWriter, req *http.Request) 
 }
 
 func (h *Handlers) Ping(writer http.ResponseWriter, req *http.Request) {
-	// host=localhost user=shortener password=3BJ2zWGPbQps dbname=shortener port=5432
-	if h.DSN == "" {
-		writer.WriteHeader(http.StatusInternalServerError)
+	err := h.PingDB()
 
-		return
-	}
-
-	if err := ping.Run(h.DSN); err != nil {
+	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 
 		return
