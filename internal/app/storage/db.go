@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/alaleks/shortener/internal/app/config"
@@ -30,6 +31,7 @@ var (
 type DB struct {
 	db   *gorm.DB
 	conf config.Configurator
+	mu   *sync.RWMutex
 }
 
 func NewDB(conf config.Configurator) *DB {
@@ -187,9 +189,10 @@ func (d *DB) Update(uid string) {
 		return
 	}
 
+	d.mu.Lock()
 	url.Statistics++
-
 	d.db.Save(&url)
+	d.mu.Unlock()
 }
 
 func (d *DB) GetURL(uid string) (string, error) {

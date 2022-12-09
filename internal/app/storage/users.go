@@ -22,11 +22,12 @@ func (ds *DefaultStorage) GetUrlsUser(userID string) ([]URLUser, error) {
 	}
 
 	ds.mu.RLock()
+	defer ds.mu.RUnlock()
+
 	uidsShortURL := ds.users[uint(uid)]
 	urls := make([]URLUser, 0, len(uidsShortURL))
-	ds.mu.RUnlock()
 
-	if cap(urls) == 0 {
+	if len(uidsShortURL) == 0 {
 		return urls, ErrUserUrlsEmpty
 	}
 
