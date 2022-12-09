@@ -58,7 +58,10 @@ func InitStore(conf config.Configurator) *Store {
 
 	storeDefault := &Store{Store: NewDefault(conf)}
 	err := storeDefault.Store.Init()
-	log.Fatal(err)
+
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	return storeDefault
 }
