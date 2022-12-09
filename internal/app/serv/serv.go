@@ -13,6 +13,8 @@ import (
 	"github.com/alaleks/shortener/internal/app/handlers"
 	"github.com/alaleks/shortener/internal/app/router"
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
+	"github.com/alaleks/shortener/internal/app/serv/middleware/auth"
+	"github.com/alaleks/shortener/internal/app/serv/middleware/compress"
 )
 
 const (
@@ -30,12 +32,13 @@ type AppServer struct {
 
 func New(sizeUID int) *AppServer {
 	var (
-		appConf    config.Configurator = config.New(config.Options{Env: true, Flag: true})
-		appHandler                     = handlers.New(sizeUID, appConf)
+		appConf    config.Configurator = config.New(config.Options{Env: true, Flag: true}, sizeUID)
+		appHandler                     = handlers.New(appConf)
+		auth                           = auth.TurnOn(appHandler.Storage, appConf.GetSecretKey())
 	)
 
 	server := &http.Server{
-		Handler: middleware.New(middleware.Compress, middleware.DeCompress).
+		Handler: middleware.New(compress.Compression, compress.Unpacking, auth.Authorization).
 			Configure(router.Create(appHandler)),
 		ReadTimeout:       defaultTimeout,
 		WriteTimeout:      defaultTimeout,
@@ -63,7 +66,6 @@ func Run(appServer *AppServer) error {
 func catchSignal(appServer *AppServer) {
 	termSignals := make(chan os.Signal, 1)
 	reloadSignals := make(chan os.Signal, 1)
-	fileStoragePath := appServer.conf.GetFileStoragePath()
 
 	signal.Notify(termSignals,
 		syscall.SIGHUP,
@@ -76,15 +78,13 @@ func catchSignal(appServer *AppServer) {
 	for {
 		select {
 		case <-termSignals:
-			if len(fileStoragePath) != 0 {
-				if err := appServer.handlers.DataStorage.Write(fileStoragePath); err != nil {
-					log.Fatal(err)
-				}
+			if err := appServer.handlers.Storage.Store.Close(); err != nil {
+				log.Fatal(err)
 			}
 
 			log.Fatal(appServer.server.Shutdown(context.Background()))
 		case <-reloadSignals:
-			if err := appServer.handlers.DataStorage.Write(fileStoragePath); err != nil {
+			if err := appServer.handlers.Storage.Store.Close(); err != nil {
 				log.Fatal(err)
 			}
 		}

@@ -8,67 +8,55 @@ import (
 	"net/http"
 
 	"github.com/alaleks/shortener/internal/app/service"
+	"github.com/alaleks/shortener/internal/app/storage"
 	"github.com/gorilla/mux"
 )
-
-type Statistics struct {
-	ShortURL  string `json:"shorturl"`
-	LongURL   string `json:"longurl"`
-	Usage     uint   `json:"usage"`
-	CreatedAt string `json:"createdAt"`
-}
-
-type InputShorten struct {
-	URL string `json:"url"`
-}
-
-type OutputShorten struct {
-	Result  string `json:"result,omitempty"`
-	Err     string `json:"error,omitempty"`
-	Success bool   `json:"success"`
-}
-
-var ErrInvalidJSON = errors.New(`json is invalid, please check what you send. Should be: {"url":"https://example.ru"}`)
 
 func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) {
 	var (
 		input  InputShorten
 		output OutputShorten
+		userID string
 	)
 
 	body, err := io.ReadAll(req.Body)
-
-	if req.Body != nil {
-		defer req.Body.Close()
-	}
-
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	err = json.Unmarshal(body, &input)
-
-	switch {
-	case err != nil:
+	if err := json.Unmarshal(body, &input); err != nil {
 		output.Err = err.Error()
-	case input.URL == "":
-		output.Err = ErrInvalidJSON.Error()
-	default:
-		err = service.IsURL(input.URL)
-		if err != nil {
-			output.Err = err.Error()
-		}
+	}
+
+	if err := service.IsURL(input.URL); err != nil {
+		output.Err = ErrInvalidRequest.Error()
+	}
+
+	if req.URL.User != nil {
+		userID = req.URL.User.Username()
 	}
 
 	writer.Header().Set("Content-Type", "application/json")
 
+	shortURL, err := h.Storage.Store.Add(input.URL, userID)
+
+	if err != nil {
+		if errors.Is(err, storage.ErrAlreadyExists) {
+			writer.WriteHeader(http.StatusConflict)
+		} else {
+			writer.WriteHeader(http.StatusInternalServerError)
+
+			return
+		}
+	} else {
+		writer.WriteHeader(http.StatusCreated)
+	}
+
 	if output.Err == "" {
 		output.Success = true
-		output.Result = h.createShortURL(input.URL)
-
-		writer.WriteHeader(http.StatusCreated)
+		output.Result = shortURL
 	}
 
 	res, err := json.Marshal(output)
@@ -79,45 +67,29 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 	}
 
 	if _, err := writer.Write(res); err != nil {
-		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
+		http.Error(writer, ErrInternalError.Error(), http.StatusBadRequest)
 
 		return
 	}
 }
 
-func (h *Handlers) createShortURL(longURL string) string {
-	shortURL := h.baseURL
-
-	uid := h.DataStorage.Add(longURL, h.SizeUID)
-
-	shortURL += uid
-
-	return shortURL
-}
-
 func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
-	uid := mux.Vars(req)["uid"]
+	var (
+		buffer bytes.Buffer
+		uid    = mux.Vars(req)["uid"]
+	)
+
 	if uid == "" {
 		http.Error(writer, ErrEmptyURL.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	longURL, counterStat, createdAt := h.DataStorage.Stat(uid)
-
-	if longURL == "" {
-		http.Error(writer, ErrUIDInvalid.Error(), http.StatusBadRequest)
+	stat, err := h.Storage.Store.Stat(uid)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
-	}
-
-	var buffer bytes.Buffer
-
-	stat := Statistics{
-		ShortURL:  h.baseURL + uid,
-		LongURL:   longURL,
-		Usage:     counterStat,
-		CreatedAt: createdAt,
 	}
 
 	if err := json.NewEncoder(&buffer).Encode(stat); err != nil {
@@ -129,7 +101,87 @@ func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 	writer.Header().Set("Content-Type", "application/json")
 
 	if _, err := writer.Write(buffer.Bytes()); err != nil {
-		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
+		http.Error(writer, ErrInternalError.Error(), http.StatusBadRequest)
+
+		return
+	}
+}
+
+func (h *Handlers) GetUsersURL(writer http.ResponseWriter, req *http.Request) {
+	var buffer bytes.Buffer
+
+	if req.URL.User == nil {
+		writer.WriteHeader(http.StatusNoContent)
+
+		return
+	}
+
+	out, err := h.Storage.Store.GetUrlsUser(req.URL.User.Username())
+	if err != nil {
+		writer.WriteHeader(http.StatusNoContent)
+
+		return
+	}
+
+	if err := json.NewEncoder(&buffer).Encode(out); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+
+	if _, err := writer.Write(buffer.Bytes()); err != nil {
+		http.Error(writer, ErrInternalError.Error(), http.StatusBadRequest)
+
+		return
+	}
+}
+
+func (h *Handlers) ShortenURLBatch(writer http.ResponseWriter, req *http.Request) {
+	var (
+		input  []InShortenBatch
+		userID string
+	)
+
+	if req.URL.User != nil {
+		userID = req.URL.User.Username()
+	}
+
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	err = json.Unmarshal(body, &input)
+
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	output, err := h.ProcessingURLBatch(userID, input)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	res, err := json.MarshalIndent(output, " ", "  ")
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(http.StatusCreated)
+
+	if _, err := writer.Write(res); err != nil {
+		http.Error(writer, ErrInternalError.Error(), http.StatusBadRequest)
 
 		return
 	}

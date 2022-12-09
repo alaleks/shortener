@@ -14,6 +14,8 @@ import (
 	"github.com/alaleks/shortener/internal/app/handlers"
 	"github.com/alaleks/shortener/internal/app/router"
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
+	"github.com/alaleks/shortener/internal/app/serv/middleware/auth"
+	"github.com/alaleks/shortener/internal/app/serv/middleware/compress"
 	"github.com/alaleks/shortener/internal/app/storage"
 )
 
@@ -22,8 +24,8 @@ const data = `{"url":"https://github.com/alaleks/shortener"}`
 func TestShortenURLAPI(t *testing.T) {
 	t.Parallel()
 	// данные для теста
-	appConf := config.New(config.Options{Env: false, Flag: false})
-	testHandler := handlers.New(5, appConf)
+	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
+	testHandler := handlers.New(appConf)
 
 	tests := []struct {
 		name    string
@@ -75,17 +77,21 @@ func TestGetStatAPI(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	appConf := config.New(config.Options{Env: false, Flag: false})
-	testHandler := handlers.New(5, appConf)
+	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
+	testHandler := handlers.New(appConf)
 	// генерируем uid
 	longURL1 := "https://github.com/alaleks/shortener"
 	longURL2 := "https://yandex.ru/pogoda/krasnodar"
 	// добавляем длинные ссылки в хранилище
-	uid1 := testHandler.DataStorage.Add(longURL1, testHandler.SizeUID)
-	uid2 := testHandler.DataStorage.Add(longURL2, testHandler.SizeUID)
+	shortURL1, _ := testHandler.Storage.Store.Add(longURL1, "")
+	uid1 := strings.SplitAfterN(shortURL1, "/", -1)[3]
+
+	shortURL2, _ := testHandler.Storage.Store.Add(longURL2, "")
+	uid2 := strings.SplitAfterN(shortURL2, "/", -1)[3]
+
 	hostStat := appConf.GetBaseURL() + "api/"
 	// для uid1 изменяем статистику
-	testHandler.DataStorage.Update(uid1)
+	testHandler.Storage.Store.Update(uid1)
 	// создаем роутеры
 	routers := router.Create(testHandler)
 
@@ -122,7 +128,7 @@ func TestGetStatAPI(t *testing.T) {
 			}
 			resBody, err := io.ReadAll(res.Body)
 			if res.StatusCode == 200 && err == nil {
-				var stat handlers.Statistics
+				var stat storage.Statistics
 				if json.Unmarshal(resBody, &stat) == nil {
 					if stat.Usage != item.stat {
 						t.Errorf("mismatch statistics: should be %d but received %d", item.stat, stat.Usage)
@@ -138,10 +144,11 @@ func TestSetEnv(t *testing.T) {
 	t.Setenv("SERVER_ADDRESS", "localhost:9090")
 	t.Setenv("BASE_URL", "http://example.ru/")
 	t.Setenv("FILE_STORAGE_PATH", "./storage")
+	t.Setenv("DATABASE_DSN", "")
 
 	// настройки для теста
-	appConf := config.New(config.Options{Env: true, Flag: false})
-	testHandler := handlers.New(5, appConf)
+	appConf := config.New(config.Options{Env: true, Flag: false}, 5)
+	testHandler := handlers.New(appConf)
 
 	// создаем запрос, рекордер, хэндлер, запускаем сервер
 	testRec := httptest.NewRecorder()
@@ -163,7 +170,7 @@ func TestSetEnv(t *testing.T) {
 	_ = json.Unmarshal(resBody, &dataFromRes)
 
 	if len(appConf.GetFileStoragePath()) != 0 {
-		_ = testHandler.DataStorage.Write(appConf.GetFileStoragePath())
+		_ = testHandler.Storage.Store.Close()
 	}
 
 	if req.URL.String() != "localhost:9090" {
@@ -178,11 +185,11 @@ func TestSetEnv(t *testing.T) {
 		t.Errorf("failed to create file storage %s", err.Error())
 	}
 
-	// сбрасываеи карту и читаем файл
-	testHandler.DataStorage = storage.New()
-	_ = testHandler.DataStorage.Read(appConf.GetFileStoragePath())
+	// сбрасываем карту и читаем файл
+	testHandler.Storage = storage.InitStore(appConf)
+	_ = testHandler.Storage.Store.Close()
 
-	if _, ok := testHandler.DataStorage.GetURL(strings.Split(dataFromRes.Result, "/")[3]); !ok {
+	if _, err := testHandler.Storage.Store.GetURL(strings.Split(dataFromRes.Result, "/")[3]); err != nil {
 		t.Errorf("failed to get data from file storage: %s", dataFromRes.Result)
 	}
 
@@ -195,13 +202,14 @@ func TestSetFlag(t *testing.T) {
 
 	// настройки для теста
 	options := config.Options{Env: true, Flag: true}
-	appConf := config.New(options)
+	appConf := config.New(options, 5)
 	argsTest := []string{
 		"TestFlags", "-a", "localhost:9093", "-b",
 		"http://localhost:9093/", "-f", "./storage",
 	}
 	appConf.DefineOptionsFlags(argsTest)
-	testHandler := handlers.New(5, appConf)
+
+	testHandler := handlers.New(appConf)
 
 	// создаем запрос, рекордер, хэндлер, запускаем сервер
 	testRec := httptest.NewRecorder()
@@ -223,7 +231,7 @@ func TestSetFlag(t *testing.T) {
 	_ = json.Unmarshal(resBody, &dataFromRes)
 
 	if len(appConf.GetFileStoragePath()) != 0 {
-		_ = testHandler.DataStorage.Write(appConf.GetFileStoragePath())
+		_ = testHandler.Storage.Store.Close()
 	}
 
 	if req.URL.String() != "localhost:9093" {
@@ -239,10 +247,10 @@ func TestSetFlag(t *testing.T) {
 	}
 
 	// сбрасываеи карту и читаем файл
-	testHandler.DataStorage = storage.New()
-	_ = testHandler.DataStorage.Read(appConf.GetFileStoragePath())
+	testHandler.Storage = storage.InitStore(appConf)
+	_ = testHandler.Storage.Store.Close()
 
-	if _, ok := testHandler.DataStorage.GetURL(strings.Split(dataFromRes.Result, "/")[3]); !ok {
+	if _, err := testHandler.Storage.Store.GetURL(strings.Split(dataFromRes.Result, "/")[3]); err != nil {
 		t.Errorf("failed to get data from file storage: %s", dataFromRes.Result)
 	}
 
@@ -253,8 +261,8 @@ func TestSetFlag(t *testing.T) {
 func TestCompress(t *testing.T) {
 	t.Parallel()
 	// данные для теста
-	appConf := config.New(config.Options{Env: false, Flag: false})
-	testHandler := handlers.New(5, appConf)
+	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
+	testHandler := handlers.New(appConf)
 
 	tests := []struct {
 		name            string
@@ -272,7 +280,7 @@ func TestCompress(t *testing.T) {
 
 			// создаем запрос, рекордер, хэндлер, запускаем сервер
 			testRec := httptest.NewRecorder()
-			h := middleware.New(middleware.Compress, middleware.DeCompress).
+			h := middleware.New(compress.Compression, compress.Unpacking).
 				Configure(http.HandlerFunc(testHandler.ShortenURLAPI))
 			req := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL(), bytes.NewBuffer([]byte(data)))
 			req.Header.Set("Content-Type", "application/json")
@@ -280,12 +288,91 @@ func TestCompress(t *testing.T) {
 			h.ServeHTTP(testRec, req)
 			res := testRec.Result()
 			if res != nil {
-				res.Body.Close()
+				defer res.Body.Close()
 			}
 
 			if item.contentEncoding != res.Header.Get("Content-Encoding") {
 				t.Errorf("content-Encoding should be '%s' but received '%s'",
 					item.contentEncoding, res.Header.Get("Content-Encoding"))
+			}
+		})
+	}
+}
+
+func TestGetUsersURL(t *testing.T) {
+	t.Parallel()
+	// данные для теста
+	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
+	testHandler := handlers.New(appConf)
+	auth := auth.TurnOn(testHandler.Storage, appConf.GetSecretKey())
+	tests := []struct {
+		name string
+		code int
+		url  string
+	}{
+		{
+			name: "проверка когда кука установлена и валидна", code: 200,
+			url: "http://github.com/alaleks/shortener",
+		},
+		{
+			name: "проверка, когда кука пуста", code: 204,
+			url: "",
+		},
+		{
+			name: "проверка, когда куку пытались поменять", code: 204,
+			url: "wrong",
+		},
+	}
+
+	for _, v := range tests {
+		item := v
+		t.Run(item.name, func(t *testing.T) {
+			t.Parallel()
+
+			testRec := httptest.NewRecorder()
+			handler := middleware.New(auth.Authorization).
+				Configure(http.HandlerFunc(testHandler.GetUsersURL))
+			req := httptest.NewRequest(http.MethodGet, appConf.GetBaseURL(), nil)
+
+			// тестируем сценарий добавления куки пр сокращении URL
+			if item.url != "" {
+				testRec2 := httptest.NewRecorder()
+				handler2 := middleware.New(auth.Authorization).
+					Configure(http.HandlerFunc(testHandler.ShortenURL))
+				req2 := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL(), bytes.NewBuffer([]byte(item.url)))
+				handler2.ServeHTTP(testRec2, req2)
+				res2 := testRec2.Result()
+				if res2.Body != nil {
+					defer res2.Body.Close()
+				}
+				http.SetCookie(testRec, res2.Cookies()[0])
+				req.Header = http.Header{"Cookie": testRec2.Header()["Set-Cookie"]}
+			}
+
+			// здесь меняем куку авторизации
+			if item.url == "wrong" {
+				testRec2 := httptest.NewRecorder()
+				handler2 := middleware.New(auth.Authorization).
+					Configure(http.HandlerFunc(testHandler.ShortenURL))
+				req2 := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL(), bytes.NewBuffer([]byte(item.url)))
+				handler2.ServeHTTP(testRec2, req2)
+				res2 := testRec2.Result()
+				if res2.Body != nil {
+					defer res2.Body.Close()
+				}
+				cookie := res2.Cookies()[0]
+				cookie.Value += "wrong"
+				http.SetCookie(testRec, cookie)
+				req.Header = http.Header{"Cookie": testRec2.Header()["Set-Cookie"]}
+			}
+
+			handler.ServeHTTP(testRec, req)
+			res := testRec.Result()
+			if res.Body != nil {
+				defer res.Body.Close()
+			}
+			if res.StatusCode != item.code {
+				t.Errorf("status code should be %d but received %d", item.code, res.StatusCode)
 			}
 		})
 	}

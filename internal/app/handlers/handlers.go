@@ -6,48 +6,15 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/alaleks/shortener/internal/app/storage"
 	"github.com/gorilla/mux"
 )
 
-type Handlers struct {
-	DataStorage storage.Storage
-	baseURL     string
-	SizeUID     int
-}
-
-var (
-	ErrEmptyURL   = errors.New("url is empty")
-	ErrWriter     = errors.New("sorry, an error has occurred, please try again")
-	ErrUIDInvalid = errors.New("short url is invalid")
-)
-
-func New(sizeShortUID int, conf config.Configurator) *Handlers {
-	handlers := Handlers{
-		DataStorage: storage.New(),
-		SizeUID:     sizeShortUID,
-		baseURL:     conf.GetBaseURL(),
-	}
-
-	if conf.GetFileStoragePath() != "" {
-		err := handlers.DataStorage.Read(conf.GetFileStoragePath())
-		if err != nil {
-			return &handlers
-		}
-	}
-
-	return &handlers
-}
-
 func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
+	var userID string
+
 	body, err := io.ReadAll(req.Body)
-
-	if req.Body != nil {
-		defer req.Body.Close()
-	}
-
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
@@ -55,29 +22,34 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 	}
 
 	longURL := string(bytes.TrimSpace(body))
-
-	if longURL == "" {
-		http.Error(writer, ErrEmptyURL.Error(), http.StatusBadRequest)
-
-		return
-	}
-
 	err = service.IsURL(longURL)
+
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	writer.WriteHeader(http.StatusCreated)
+	if req.URL.User != nil {
+		userID = req.URL.User.Username()
+	}
 
-	// формируем короткую ссылку
-	shortURL := h.baseURL
-	uid := h.DataStorage.Add(longURL, h.SizeUID)
-	shortURL += uid
+	shortURL, err := h.Storage.Store.Add(longURL, userID)
+
+	if err != nil {
+		if errors.Is(err, storage.ErrAlreadyExists) {
+			writer.WriteHeader(http.StatusConflict)
+		} else {
+			writer.WriteHeader(http.StatusInternalServerError)
+
+			return
+		}
+	} else {
+		writer.WriteHeader(http.StatusCreated)
+	}
 
 	if _, err := writer.Write([]byte(shortURL)); err != nil {
-		http.Error(writer, ErrWriter.Error(), http.StatusBadRequest)
+		http.Error(writer, ErrInternalError.Error(), http.StatusBadRequest)
 
 		return
 	}
@@ -92,14 +64,23 @@ func (h *Handlers) ParseShortURL(writer http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	longURL, ok := h.DataStorage.GetURL(uid)
-	if !ok {
-		http.Error(writer, ErrUIDInvalid.Error(), http.StatusBadRequest)
+	longURL, err := h.Storage.Store.GetURL(uid)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	h.DataStorage.Update(uid)
+	h.Storage.Store.Update(uid)
+
 	writer.Header().Set("Location", longURL)
 	writer.WriteHeader(http.StatusTemporaryRedirect)
+}
+
+func (h *Handlers) Ping(writer http.ResponseWriter, req *http.Request) {
+	if err := h.Storage.Store.Ping(); err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+
+		return
+	}
 }
