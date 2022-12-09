@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"strconv"
@@ -36,9 +37,7 @@ func NewDB(conf config.Configurator) *DB {
 }
 
 func (d *DB) Init() error {
-
 	db, err := gorm.Open(postgres.Open(d.conf.GetDSN()), &gorm.Config{})
-
 	if err != nil {
 		return fmt.Errorf("database connection error: %w", err)
 	}
@@ -60,12 +59,10 @@ func (d *DB) Init() error {
 	}
 
 	return nil
-
 }
 
 func (d *DB) Close() error {
 	sqlDB, err := d.db.DB()
-
 	if err != nil {
 		return fmt.Errorf("SQL instance error: %w", err)
 	}
@@ -85,13 +82,21 @@ func (d *DB) Ping() error {
 	}
 
 	sqlDB, err := d.db.DB()
-
 	if err != nil {
 		return fmt.Errorf("SQL instance error: %w", err)
 	}
 
 	err = sqlDB.Ping()
 
+	if err != nil {
+		return fmt.Errorf("ping db error: %w", err)
+	}
+
+	return err
+}
+
+func PingDB(sqlDB *sql.DB) error {
+	err := sqlDB.Ping()
 	if err != nil {
 		return fmt.Errorf("ping db error: %w", err)
 	}
@@ -256,27 +261,26 @@ func getUrlsUser(db *gorm.DB, uid uint) []models.Urls {
 	return urls
 }
 
-func (d *DB) GetUrlsUser(userID string) ([]UrlUser, error) {
+func (d *DB) GetUrlsUser(userID string) ([]URLUser, error) {
 	if d.Ping() != nil {
-		return []UrlUser{}, ErrDBConnection
+		return []URLUser{}, ErrDBConnection
 	}
 
 	uid, err := strconv.Atoi(userID)
-
 	if err != nil {
-		return []UrlUser{}, ErrUserIDNotValid
+		return []URLUser{}, ErrUserIDNotValid
 	}
 
 	urls := getUrlsUser(d.db, uint(uid))
 
-	usersURL := make([]UrlUser, 0, len(urls))
+	usersURL := make([]URLUser, 0, len(urls))
 
 	if len(urls) == 0 {
 		return usersURL, ErrUserUrlsEmpty
 	}
 
 	for _, item := range urls {
-		usersURL = append(usersURL, UrlUser{
+		usersURL = append(usersURL, URLUser{
 			ShortURL:    item.ShortUID,
 			OriginalURL: item.LongURL,
 		})

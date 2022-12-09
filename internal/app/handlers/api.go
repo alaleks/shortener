@@ -20,16 +20,13 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 	)
 
 	body, err := io.ReadAll(req.Body)
-
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	err = json.Unmarshal(body, &input)
-
-	if err != nil {
+	if err := json.Unmarshal(body, &input); err != nil {
 		output.Err = err.Error()
 	}
 
@@ -89,7 +86,6 @@ func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 	}
 
 	stat, err := h.Storage.Store.Stat(uid)
-
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
@@ -121,7 +117,6 @@ func (h *Handlers) GetUsersURL(writer http.ResponseWriter, req *http.Request) {
 	}
 
 	out, err := h.Storage.Store.GetUrlsUser(req.URL.User.Username())
-
 	if err != nil {
 		writer.WriteHeader(http.StatusNoContent)
 
@@ -154,7 +149,6 @@ func (h *Handlers) ShortenURLBatch(writer http.ResponseWriter, req *http.Request
 	}
 
 	body, err := io.ReadAll(req.Body)
-
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 

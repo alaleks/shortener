@@ -10,21 +10,20 @@ var (
 	ErrUserUrlsEmpty  = errors.New("shortened URLs for current user is empty")
 )
 
-type UrlUser struct {
+type URLUser struct {
 	ShortURL    string `json:"short_url"`
 	OriginalURL string `json:"original_url"`
 }
 
-func (ds *DefaultStorage) GetUrlsUser(userID string) ([]UrlUser, error) {
+func (ds *DefaultStorage) GetUrlsUser(userID string) ([]URLUser, error) {
 	uid, err := strconv.Atoi(userID)
-
 	if err != nil {
-		return []UrlUser{}, ErrUserIDNotValid
+		return []URLUser{}, ErrUserIDNotValid
 	}
 
 	ds.mu.RLock()
 	uidsShortURL := ds.users[uint(uid)]
-	urls := make([]UrlUser, 0, len(uidsShortURL))
+	urls := make([]URLUser, 0, len(uidsShortURL))
 	ds.mu.RUnlock()
 
 	if cap(urls) == 0 {
@@ -33,7 +32,7 @@ func (ds *DefaultStorage) GetUrlsUser(userID string) ([]UrlUser, error) {
 
 	for _, shortUID := range uidsShortURL {
 		if originalURL, err := ds.GetURL(shortUID); err == nil {
-			urls = append(urls, UrlUser{ShortURL: ds.conf.GetBaseURL() + shortUID, OriginalURL: originalURL})
+			urls = append(urls, URLUser{ShortURL: ds.conf.GetBaseURL() + shortUID, OriginalURL: originalURL})
 		}
 	}
 

@@ -21,13 +21,13 @@ type Urls struct {
 	UID           uint
 }
 
-func Migrate(db *gorm.DB) error {
-	err := db.AutoMigrate(&Users{}, &Urls{})
+func Migrate(sqlDB *gorm.DB) error {
+	err := sqlDB.AutoMigrate(&Users{}, &Urls{})
 	if err != nil {
 		err = fmt.Errorf("error automigrate: %w", err)
 	}
 
-	db.Exec("ALTER TABLE urls ADD FOREIGN KEY(uid) REFERENCES users(uid);")
+	sqlDB.Exec("ALTER TABLE urls ADD FOREIGN KEY(uid) REFERENCES users(uid);")
 
 	return err
 }

@@ -15,7 +15,6 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 	var userID string
 
 	body, err := io.ReadAll(req.Body)
-
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
@@ -66,7 +65,6 @@ func (h *Handlers) ParseShortURL(writer http.ResponseWriter, req *http.Request) 
 	}
 
 	longURL, err := h.Storage.Store.GetURL(uid)
-
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
@@ -80,9 +78,7 @@ func (h *Handlers) ParseShortURL(writer http.ResponseWriter, req *http.Request) 
 }
 
 func (h *Handlers) Ping(writer http.ResponseWriter, req *http.Request) {
-	err := h.Storage.Store.Ping()
-
-	if err != nil {
+	if err := h.Storage.Store.Ping(); err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 
 		return

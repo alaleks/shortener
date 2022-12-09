@@ -81,6 +81,7 @@ func catchSignal(appServer *AppServer) {
 			if err := appServer.handlers.Storage.Store.Close(); err != nil {
 				log.Fatal(err)
 			}
+
 			log.Fatal(appServer.server.Shutdown(context.Background()))
 		case <-reloadSignals:
 			if err := appServer.handlers.Storage.Store.Close(); err != nil {

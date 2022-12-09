@@ -1,6 +1,10 @@
 package storage
 
-import "github.com/alaleks/shortener/internal/app/config"
+import (
+	"log"
+
+	"github.com/alaleks/shortener/internal/app/config"
+)
 
 type Store struct {
 	Store Storage
@@ -32,7 +36,7 @@ type Consumer interface {
 
 type User interface {
 	Create() uint
-	GetUrlsUser(userID string) ([]UrlUser, error)
+	GetUrlsUser(userID string) ([]URLUser, error)
 }
 
 type Statistics struct {
@@ -45,13 +49,16 @@ type Statistics struct {
 func InitStore(conf config.Configurator) *Store {
 	if len([]rune(conf.GetDSN())) > 1 {
 		storeDB := &Store{Store: NewDB(conf)}
-		storeDB.Store.Init()
+		err := storeDB.Store.Init()
 
-		return storeDB
+		if err == nil {
+			return storeDB
+		}
 	}
 
 	storeDefault := &Store{Store: NewDefault(conf)}
-	storeDefault.Store.Init()
+	err := storeDefault.Store.Init()
+	log.Fatal(err)
 
 	return storeDefault
 }
