@@ -1,8 +1,6 @@
 package storage
 
 import (
-	"log"
-
 	"github.com/alaleks/shortener/internal/app/config"
 )
 
@@ -49,19 +47,19 @@ type Statistics struct {
 func InitStore(conf config.Configurator) *Store {
 	if len([]rune(conf.GetDSN())) > 1 {
 		storeDB := &Store{Store: NewDB(conf)}
+		// инициализируем базу данных
 		err := storeDB.Store.Init()
 
+		// возвращаем структуру только если ошибка nil
+		// в противном случае используем файл или память
 		if err == nil {
 			return storeDB
 		}
 	}
 
 	storeDefault := &Store{Store: NewDefault(conf)}
-	err := storeDefault.Store.Init()
-
-	if err != nil {
-		log.Fatal(err)
-	}
+	// инициализируем файловое хранилище
+	_ = storeDefault.Store.Init()
 
 	return storeDefault
 }
