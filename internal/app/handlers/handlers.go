@@ -6,8 +6,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/alaleks/shortener/internal/app/database/methods"
 	"github.com/alaleks/shortener/internal/app/service"
+	"github.com/alaleks/shortener/internal/app/storage"
 	"github.com/gorilla/mux"
 )
 
@@ -35,14 +35,17 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 		userID = req.URL.User.Username()
 	}
 
-	shortURL, err := h.AddShortenURL(userID, longURL)
+	shortURL, err := h.Storage.Store.Add(longURL, userID)
 
-	// если ошибка соот-т ErrAlreadyExists, то устанавливаем статус 409
-	// в противном случае - статус 201
-	switch errors.Is(err, methods.ErrAlreadyExists) {
-	case true:
-		writer.WriteHeader(http.StatusConflict)
-	default:
+	if err != nil {
+		if errors.Is(err, storage.ErrAlreadyExists) {
+			writer.WriteHeader(http.StatusConflict)
+		} else {
+			writer.WriteHeader(http.StatusInternalServerError)
+
+			return
+		}
+	} else {
 		writer.WriteHeader(http.StatusCreated)
 	}
 
@@ -62,19 +65,22 @@ func (h *Handlers) ParseShortURL(writer http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	longURL, err := h.GetOriginalURL(uid)
+	longURL, err := h.Storage.Store.GetURL(uid)
+
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
+	h.Storage.Store.Update(uid)
+
 	writer.Header().Set("Location", longURL)
 	writer.WriteHeader(http.StatusTemporaryRedirect)
 }
 
 func (h *Handlers) Ping(writer http.ResponseWriter, req *http.Request) {
-	err := h.PingDB()
+	err := h.Storage.Store.Ping()
 
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)

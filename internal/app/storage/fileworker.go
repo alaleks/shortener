@@ -9,13 +9,12 @@ import (
 	"strings"
 )
 
-type FileStorage interface {
-	Write(filepath string) error
-	Read(filepath string) error
-}
+func (ds *DefaultStorage) Close() error {
+	if ds.conf.GetFileStoragePath() == "" {
+		return nil
+	}
 
-func (u *Urls) Write(filepath string) error {
-	file, err := os.Create(correctorFilename(filepath))
+	file, err := os.Create(correctorFilename(ds.conf.GetFileStoragePath()))
 	if err != nil {
 		return fmt.Errorf("failed create file storage: %w", err)
 	}
@@ -27,7 +26,7 @@ func (u *Urls) Write(filepath string) error {
 	buf := new(bytes.Buffer)
 	encoder := gob.NewEncoder(buf)
 
-	if err := encoder.Encode(u.data); err != nil {
+	if err := encoder.Encode(ds.urls); err != nil {
 		return fmt.Errorf("failed encode data for file storage: %w", err)
 	}
 
@@ -46,8 +45,12 @@ func (u *Urls) Write(filepath string) error {
 	return nil
 }
 
-func (u *Urls) Read(filepath string) error {
-	file, err := os.Open(correctorFilename(filepath))
+func (ds *DefaultStorage) Init() error {
+	if ds.conf.GetFileStoragePath() == "" {
+		return nil
+	}
+
+	file, err := os.Open(correctorFilename(ds.conf.GetFileStoragePath()))
 	if err != nil {
 		return fmt.Errorf("failed open file storage: %w", err)
 	}
@@ -58,7 +61,17 @@ func (u *Urls) Read(filepath string) error {
 
 	decoder := gob.NewDecoder(file)
 
-	return fmt.Errorf("failed decode data: %w", decoder.Decode(&u.data))
+	err = decoder.Decode(&ds.urls)
+
+	if err != nil {
+		return fmt.Errorf("failed decode data: %w", err)
+	}
+
+	return err
+}
+
+func (ds *DefaultStorage) Ping() error {
+	return nil
 }
 
 func correctorFilename(filepath string) string {

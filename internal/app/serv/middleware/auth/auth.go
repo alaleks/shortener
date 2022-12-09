@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/alaleks/shortener/internal/app/handlers"
 	"github.com/alaleks/shortener/internal/app/storage"
 )
 
@@ -22,13 +21,12 @@ const (
 )
 
 type Auth struct {
-	users     *storage.Users
+	store     *storage.Store
 	secretKey []byte
-	handlers  *handlers.Handlers
 }
 
-func TurnOn(users *storage.Users, secretKey []byte, handlers *handlers.Handlers) Auth {
-	return Auth{users: users, secretKey: secretKey, handlers: handlers}
+func TurnOn(store *storage.Store, secretKey []byte) Auth {
+	return Auth{store: store, secretKey: secretKey}
 }
 
 func (a *Auth) createSigning(uid uint) string {
@@ -69,11 +67,7 @@ func (a *Auth) Authorization(handler http.Handler) http.Handler {
 		var userID uint
 
 		if authCookie == nil || err != nil {
-			if a.handlers.PingDB() == nil {
-				userID = a.handlers.DB.AddUser()
-			} else {
-				userID = a.users.Create()
-			}
+			userID = a.store.Store.Create()
 
 			setCookie(writer, req, a.createSigning(userID))
 			req.URL.User = url.User(strconv.Itoa(int(userID)))
@@ -84,11 +78,7 @@ func (a *Auth) Authorization(handler http.Handler) http.Handler {
 
 		userID, err = a.readSigning(authCookie.Value)
 		if err != nil {
-			if a.handlers.PingDB() == nil {
-				userID = a.handlers.DB.AddUser()
-			} else {
-				userID = a.users.Create()
-			}
+			userID = a.store.Store.Create()
 
 			setCookie(writer, req, a.createSigning(userID))
 			req.URL.User = url.User(strconv.Itoa(int(userID)))

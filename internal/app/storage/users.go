@@ -1,43 +1,54 @@
 package storage
 
 import (
+	"errors"
 	"strconv"
-	"sync"
 )
 
-type Users struct {
-	data map[uint][]string
-	mu   sync.RWMutex
+var (
+	ErrUserIDNotValid = errors.New("invalid user id")
+	ErrUserUrlsEmpty  = errors.New("shortened URLs for current user is empty")
+)
+
+type UrlUser struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
 }
 
-func NewUsers() Users {
-	return Users{data: make(map[uint][]string), mu: sync.RWMutex{}}
-}
+func (ds *DefaultStorage) GetUrlsUser(userID string) ([]UrlUser, error) {
+	uid, err := strconv.Atoi(userID)
 
-func (u *Users) Check(uid uint) ([]string, bool) {
-	u.mu.RLock()
-	uidsShortURL, check := u.data[uid]
-	u.mu.RUnlock()
-
-	return uidsShortURL, check
-}
-
-func (u *Users) Create() uint {
-	u.mu.Lock()
-	uid := uint(len(u.data) + 1)
-	u.data[uid] = make([]string, 0)
-	u.mu.Unlock()
-
-	return uid
-}
-
-func (u *Users) AddShortUID(uid, uidShortURL string) {
-	uidToInt, err := strconv.Atoi(uid)
 	if err != nil {
-		return
+		return []UrlUser{}, ErrUserIDNotValid
 	}
 
-	u.mu.Lock()
-	u.data[uint(uidToInt)] = append(u.data[uint(uidToInt)], uidShortURL)
-	u.mu.Unlock()
+	ds.mu.RLock()
+	uidsShortURL := ds.users[uint(uid)]
+	urls := make([]UrlUser, 0, len(uidsShortURL))
+	ds.mu.RUnlock()
+
+	if cap(urls) == 0 {
+		return urls, ErrUserUrlsEmpty
+	}
+
+	for _, shortUID := range uidsShortURL {
+		if originalURL, err := ds.GetURL(shortUID); err == nil {
+			urls = append(urls, UrlUser{ShortURL: ds.conf.GetBaseURL() + shortUID, OriginalURL: originalURL})
+		}
+	}
+
+	if len(urls) == 0 {
+		return urls, ErrUserUrlsEmpty
+	}
+
+	return urls, nil
+}
+
+func (ds *DefaultStorage) Create() uint {
+	ds.mu.Lock()
+	uid := uint(len(ds.users) + 1)
+	ds.users[uid] = make([]string, 0)
+	ds.mu.Unlock()
+
+	return uid
 }

@@ -16,8 +16,8 @@ func TestShortenURL(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	appConf := config.New(config.Options{Env: false, Flag: false})
-	testHandler := handlers.New(5, appConf)
+	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
+	testHandler := handlers.New(appConf)
 
 	tests := []struct {
 		name     string
@@ -70,10 +70,10 @@ func TestParseShortURL(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	appConf := config.New(config.Options{Env: false, Flag: false})
-	testHandler := handlers.New(5, appConf)
+	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
+	testHandler := handlers.New(appConf)
 	longURL := "https://github.com/alaleks/shortener"
-	uid := testHandler.DataStorage.Add(longURL, testHandler.SizeUID)
+	shortURL, _ := testHandler.Storage.Store.Add(longURL, "1")
 	routers := router.Create(testHandler)
 
 	tests := []struct {
@@ -84,7 +84,7 @@ func TestParseShortURL(t *testing.T) {
 	}{
 		{
 			name: "парсинг корректной короткой ссылки", code: 307,
-			longURL: longURL, shortURL: appConf.GetBaseURL() + uid,
+			longURL: longURL, shortURL: shortURL,
 		},
 		{
 			name: "парсинг некорректной короткой ссылки - 1", code: 405,

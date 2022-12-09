@@ -4,18 +4,11 @@ import (
 	"errors"
 
 	"github.com/alaleks/shortener/internal/app/config"
-	"github.com/alaleks/shortener/internal/app/database/methods"
 	"github.com/alaleks/shortener/internal/app/storage"
 )
 
 type Handlers struct {
-	baseURL     string
-	DSN         string
-	DB          *methods.Database
-	DataStorage storage.Storage
-	Users       storage.Users
-	checkDB     bool
-	SizeUID     int
+	Storage *storage.Store
 }
 
 var (
@@ -27,13 +20,6 @@ var (
 	ErrUserDoesNotExist = errors.New("user did not use the service")
 	ErrEmptyBatch       = errors.New("URL batching error, please check the source data")
 )
-
-type Statistics struct {
-	ShortURL  string `json:"shorturl"`
-	LongURL   string `json:"longurl"`
-	CreatedAt string `json:"createdAt"`
-	Usage     uint   `json:"usage"`
-}
 
 type InputShorten struct {
 	URL string `json:"url"`
@@ -56,28 +42,9 @@ type OutShortenBatch struct {
 	Err      string `json:"error,omitempty"`
 }
 
-func New(sizeShortUID int, conf config.Configurator) *Handlers {
+func New(conf config.Configurator) *Handlers {
 	handlers := Handlers{
-		DataStorage: storage.New(),
-		SizeUID:     sizeShortUID,
-		baseURL:     conf.GetBaseURL(),
-		Users:       storage.NewUsers(),
-		DSN:         conf.GetDSN(),
-	}
-
-	if conf.GetFileStoragePath() != "" {
-		err := handlers.DataStorage.Read(conf.GetFileStoragePath())
-		if err != nil {
-			return &handlers
-		}
-	}
-
-	if handlers.DSN != "" {
-		err := handlers.ConnectDB()
-
-		if err == nil {
-			handlers.checkDB = true
-		}
+		Storage: storage.InitStore(conf),
 	}
 
 	return &handlers

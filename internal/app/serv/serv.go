@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/alaleks/shortener/internal/app/config"
-	"github.com/alaleks/shortener/internal/app/database"
-	"github.com/alaleks/shortener/internal/app/database/models"
 	"github.com/alaleks/shortener/internal/app/handlers"
 	"github.com/alaleks/shortener/internal/app/router"
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
@@ -34,19 +32,10 @@ type AppServer struct {
 
 func New(sizeUID int) *AppServer {
 	var (
-		appConf    config.Configurator = config.New(config.Options{Env: true, Flag: true})
-		appHandler                     = handlers.New(sizeUID, appConf)
-		auth                           = auth.TurnOn(&appHandler.Users,
-			appConf.GetSecretKey(), appHandler)
+		appConf    config.Configurator = config.New(config.Options{Env: true, Flag: true}, sizeUID)
+		appHandler                     = handlers.New(appConf)
+		auth                           = auth.TurnOn(appHandler.Storage, appConf.GetSecretKey())
 	)
-
-	if appConf.GetDSN() != "" {
-		db, err := database.Connect(appConf.GetDSN())
-
-		if err == nil {
-			_ = models.Migrate(db)
-		}
-	}
 
 	server := &http.Server{
 		Handler: middleware.New(compress.Compression, compress.Unpacking, auth.Authorization).
@@ -77,7 +66,6 @@ func Run(appServer *AppServer) error {
 func catchSignal(appServer *AppServer) {
 	termSignals := make(chan os.Signal, 1)
 	reloadSignals := make(chan os.Signal, 1)
-	fileStoragePath := appServer.conf.GetFileStoragePath()
 
 	signal.Notify(termSignals,
 		syscall.SIGHUP,
@@ -90,23 +78,12 @@ func catchSignal(appServer *AppServer) {
 	for {
 		select {
 		case <-termSignals:
-			if len(fileStoragePath) != 0 {
-				if err := appServer.handlers.DataStorage.Write(fileStoragePath); err != nil {
-					log.Fatal(err)
-				}
-			}
-
-			if err := appServer.handlers.CloseDB(); err != nil {
+			if err := appServer.handlers.Storage.Store.Close(); err != nil {
 				log.Fatal(err)
 			}
-
 			log.Fatal(appServer.server.Shutdown(context.Background()))
 		case <-reloadSignals:
-			if err := appServer.handlers.DataStorage.Write(fileStoragePath); err != nil {
-				log.Fatal(err)
-			}
-
-			if err := appServer.handlers.CloseDB(); err != nil {
+			if err := appServer.handlers.Storage.Store.Close(); err != nil {
 				log.Fatal(err)
 			}
 		}

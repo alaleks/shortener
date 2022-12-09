@@ -18,6 +18,7 @@ type Recipient interface {
 	GetFileStoragePath() string
 	GetSecretKey() []byte
 	GetDSN() string
+	GetSizeUID() int
 }
 
 type Tuner interface {
@@ -31,6 +32,7 @@ type AppConfig struct {
 	fileStoragePath string
 	dsn             string
 	secretKey       []byte
+	sizeUID         int
 }
 
 type Options struct {
@@ -45,13 +47,14 @@ type confFlags struct {
 	dsn             *string
 }
 
-func New(opt Options) *AppConfig {
+func New(opt Options, sizeUID int) *AppConfig {
 	appConf := AppConfig{
 		serverAddr:      "localhost:8080",
 		baseURL:         "http://localhost:8080/",
 		fileStoragePath: "",
 		dsn:             "",
 		secretKey:       []byte("9EE3BF9351DFCFF24CD6DA2C4D963"),
+		sizeUID:         sizeUID,
 	}
 
 	if opt.Env {
@@ -83,6 +86,10 @@ func (a *AppConfig) GetSecretKey() []byte {
 
 func (a *AppConfig) GetDSN() string {
 	return a.dsn
+}
+
+func (a *AppConfig) GetSizeUID() int {
+	return a.sizeUID
 }
 
 func (a *AppConfig) DefineOptionsEnv() {

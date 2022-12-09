@@ -6,10 +6,9 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"strconv"
 
-	"github.com/alaleks/shortener/internal/app/database/methods"
 	"github.com/alaleks/shortener/internal/app/service"
+	"github.com/alaleks/shortener/internal/app/storage"
 	"github.com/gorilla/mux"
 )
 
@@ -44,14 +43,17 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 
 	writer.Header().Set("Content-Type", "application/json")
 
-	shortURL, err := h.AddShortenURL(userID, input.URL)
+	shortURL, err := h.Storage.Store.Add(input.URL, userID)
 
-	// если ошибка соот-т ErrAlreadyExists, то устанавливаем статус 409
-	// в противном случае - статус 201
-	switch errors.Is(err, methods.ErrAlreadyExists) {
-	case true:
-		writer.WriteHeader(http.StatusConflict)
-	default:
+	if err != nil {
+		if errors.Is(err, storage.ErrAlreadyExists) {
+			writer.WriteHeader(http.StatusConflict)
+		} else {
+			writer.WriteHeader(http.StatusInternalServerError)
+
+			return
+		}
+	} else {
 		writer.WriteHeader(http.StatusCreated)
 	}
 
@@ -76,7 +78,6 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 
 func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 	var (
-		stat   Statistics
 		buffer bytes.Buffer
 		uid    = mux.Vars(req)["uid"]
 	)
@@ -87,7 +88,8 @@ func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	stat, err := h.Statistics(uid)
+	stat, err := h.Storage.Store.Stat(uid)
+
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
@@ -118,14 +120,8 @@ func (h *Handlers) GetUsersURL(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	userID, err := strconv.Atoi(req.URL.User.Username())
-	if err != nil {
-		writer.WriteHeader(http.StatusNoContent)
+	out, err := h.Storage.Store.GetUrlsUser(req.URL.User.Username())
 
-		return
-	}
-
-	out, err := h.GetAllUrlsUser(userID)
 	if err != nil {
 		writer.WriteHeader(http.StatusNoContent)
 
