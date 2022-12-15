@@ -35,7 +35,7 @@ type DB struct {
 }
 
 func NewDB(conf config.Configurator) *DB {
-	return &DB{conf: conf}
+	return &DB{conf: conf, mu: &sync.RWMutex{}}
 }
 
 func (d *DB) Init() error {

@@ -96,8 +96,8 @@ func (ds *DefaultStorage) AddBatch(longURL, userID, corID string) string {
 
 func (ds *DefaultStorage) GetURL(uid string) (string, error) {
 	ds.mu.RLock()
+	defer ds.mu.RUnlock()
 	uri, check := ds.urls[uid]
-	ds.mu.RUnlock()
 
 	if !check {
 		return "", ErrUIDNotValid
