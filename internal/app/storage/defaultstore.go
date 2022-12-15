@@ -25,6 +25,7 @@ type URLElement struct {
 	LongURL       string
 	CorrelationID string
 	Statistics    uint // short URL usage statistics (actually this is the number of redirects)
+	Removed       bool
 }
 
 func NewDefault(conf config.Configurator) *DefaultStorage {
@@ -102,6 +103,10 @@ func (ds *DefaultStorage) GetURL(uid string) (string, error) {
 		return "", ErrUIDNotValid
 	}
 
+	if uri.Removed {
+		return uri.LongURL, ErrShortURLDeleted
+	}
+
 	return uri.LongURL, nil
 }
 
@@ -132,4 +137,42 @@ func (ds *DefaultStorage) Stat(uid string) (Statistics, error) {
 	}
 
 	return stat, nil
+}
+
+func (ds *DefaultStorage) DelUrls(userID string, shortsUID ...string) error {
+	for _, shortUID := range shortsUID {
+		ds.mu.Lock()
+		_, checkShortUID := ds.urls[shortUID]
+
+		if !checkShortUID {
+			ds.mu.Unlock()
+			continue
+		}
+
+		uid, err := strconv.Atoi(userID)
+		if err != nil {
+			ds.mu.Unlock()
+
+			return ErrUserIDNotValid
+		}
+
+		userShortsUID, checkUser := ds.users[uint(uid)]
+
+		if !checkUser {
+			ds.mu.Unlock()
+
+			return ErrUserIDNotValid
+		}
+
+		for _, userShortUID := range userShortsUID {
+			if userShortUID == shortUID {
+				ds.urls[shortUID].Removed = true
+
+				break
+			}
+		}
+
+		ds.mu.Unlock()
+	}
+	return nil
 }

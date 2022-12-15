@@ -186,3 +186,39 @@ func (h *Handlers) ShortenURLBatch(writer http.ResponseWriter, req *http.Request
 		return
 	}
 }
+
+func (h *Handlers) ShortenDelete(writer http.ResponseWriter, req *http.Request) {
+	var (
+		userID         string
+		shortUIDForDel []string
+	)
+
+	if req.URL.User != nil {
+		userID = req.URL.User.Username()
+	}
+
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	err = json.Unmarshal(body, &shortUIDForDel)
+
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	err = h.Storage.Store.DelUrls(userID, checkShortUID(shortUIDForDel...)...)
+
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	writer.WriteHeader(http.StatusAccepted)
+}

@@ -66,7 +66,12 @@ func (h *Handlers) ParseShortURL(writer http.ResponseWriter, req *http.Request) 
 
 	longURL, err := h.Storage.Store.GetURL(uid)
 	if err != nil {
-		http.Error(writer, err.Error(), http.StatusBadRequest)
+		switch errors.Is(err, storage.ErrShortURLDeleted) {
+		case true:
+			http.Error(writer, err.Error(), http.StatusGone)
+		default:
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+		}
 
 		return
 	}

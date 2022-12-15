@@ -208,6 +208,10 @@ func (d *DB) GetURL(uid string) (string, error) {
 		return url.LongURL, ErrUIDNotValid
 	}
 
+	if url.Removed {
+		return url.LongURL, ErrShortURLDeleted
+	}
+
 	return url.LongURL, nil
 }
 
@@ -290,4 +294,16 @@ func (d *DB) GetUrlsUser(userID string) ([]URLUser, error) {
 	}
 
 	return usersURL, nil
+}
+
+func (d *DB) DelUrls(userID string, shortsUID ...string) error {
+	if d.Ping() != nil {
+		return ErrDBConnection
+	}
+
+	res := d.db.Model(models.Urls{}).
+		Where("short_uid IN ? AND uid = ?", shortsUID, userID).
+		Updates(models.Urls{Removed: true})
+
+	return res.Error
 }

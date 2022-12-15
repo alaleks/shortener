@@ -1,8 +1,12 @@
 package storage
 
 import (
+	"errors"
+
 	"github.com/alaleks/shortener/internal/app/config"
 )
+
+var ErrShortURLDeleted = errors.New("short URL has been removed")
 
 type Store struct {
 	Store Storage
@@ -25,6 +29,7 @@ type Producer interface {
 	Add(longURL, userID string) (string, error)
 	AddBatch(longURL, userID, corID string) string
 	Update(uid string)
+	DelUrls(userID string, shortsUID ...string) error
 }
 
 type Consumer interface {
