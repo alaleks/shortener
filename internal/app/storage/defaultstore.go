@@ -139,7 +139,11 @@ func (ds *DefaultStorage) Stat(uid string) (Statistics, error) {
 	return stat, nil
 }
 
-func (ds *DefaultStorage) DelUrls(userID string, shortsUID ...string) error {
+func (ds *DefaultStorage) DelUrls(userID string, shortsUID ...string) {
+	if len(shortsUID) == 0 || userID == "" {
+		return
+	}
+
 	for _, shortUID := range shortsUID {
 		ds.mu.Lock()
 		_, checkShortUID := ds.urls[shortUID]
@@ -153,7 +157,7 @@ func (ds *DefaultStorage) DelUrls(userID string, shortsUID ...string) error {
 		if err != nil {
 			ds.mu.Unlock()
 
-			return ErrUserIDNotValid
+			return
 		}
 
 		userShortsUID, checkUser := ds.users[uint(uid)]
@@ -161,7 +165,7 @@ func (ds *DefaultStorage) DelUrls(userID string, shortsUID ...string) error {
 		if !checkUser {
 			ds.mu.Unlock()
 
-			return ErrUserIDNotValid
+			return
 		}
 
 		for _, userShortUID := range userShortsUID {
@@ -174,5 +178,4 @@ func (ds *DefaultStorage) DelUrls(userID string, shortsUID ...string) error {
 
 		ds.mu.Unlock()
 	}
-	return nil
 }

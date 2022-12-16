@@ -27,6 +27,12 @@ func (h *Handlers) ProcessingURLBatch(userID string, input []InShortenBatch) ([]
 	return out, nil
 }
 
+func (h *Handlers) DeletingShorURL() {
+	for elem := range h.Pool {
+		h.Storage.Store.DelUrls(elem.UserID, checkShortUID(elem.Data...)...)
+	}
+}
+
 func checkShortUID(shortUID ...string) []string {
 	var correctShortUID []string
 

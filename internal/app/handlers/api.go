@@ -197,28 +197,16 @@ func (h *Handlers) ShortenDelete(writer http.ResponseWriter, req *http.Request) 
 		userID = req.URL.User.Username()
 	}
 
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
+	if err := json.NewDecoder(req.Body).Decode(&shortUIDForDel); err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	err = json.Unmarshal(body, &shortUIDForDel)
-
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusBadRequest)
-
-		return
-	}
-
-	err = h.Storage.Store.DelUrls(userID, checkShortUID(shortUIDForDel...)...)
-
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusBadRequest)
-
-		return
-	}
+	h.Pool <- struct {
+		UserID string
+		Data   []string
+	}{UserID: userID, Data: shortUIDForDel}
 
 	writer.WriteHeader(http.StatusAccepted)
 }

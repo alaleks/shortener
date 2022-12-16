@@ -296,14 +296,12 @@ func (d *DB) GetUrlsUser(userID string) ([]URLUser, error) {
 	return usersURL, nil
 }
 
-func (d *DB) DelUrls(userID string, shortsUID ...string) error {
-	if d.Ping() != nil {
-		return ErrDBConnection
+func (d *DB) DelUrls(userID string, shortsUID ...string) {
+	if d.Ping() != nil || (len(shortsUID) == 0 || userID == "") {
+		return
 	}
 
-	res := d.db.Model(models.Urls{}).
+	d.db.Model(models.Urls{}).
 		Where("short_uid IN ? AND uid = ?", shortsUID, userID).
 		Updates(models.Urls{Removed: true})
-
-	return res.Error
 }
