@@ -19,8 +19,8 @@ import (
 
 const (
 	defaultTimeout           = time.Second
-	defaultReadHeaderTimeout = 2 * time.Second
-	defaultIdleTimeout       = 15 * time.Second
+	defaultReadHeaderTimeout = 30 * time.Second
+	defaultIdleTimeout       = 30 * time.Second
 	maxHeaderBytes           = 4096
 )
 
