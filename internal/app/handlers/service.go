@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/alaleks/shortener/internal/app/service"
@@ -27,12 +28,6 @@ func (h *Handlers) ProcessingURLBatch(userID string, input []InShortenBatch) ([]
 	return out, nil
 }
 
-func (h *Handlers) DeletingShorURL() {
-	for elem := range h.Pool {
-		h.Storage.Store.DelUrls(elem.UserID, checkShortUID(elem.Data...)...)
-	}
-}
-
 func checkShortUID(shortUID ...string) []string {
 	var correctShortUID []string
 
@@ -47,4 +42,11 @@ func checkShortUID(shortUID ...string) []string {
 	}
 
 	return correctShortUID
+}
+
+func (h *Handlers) RecoverHandler(handler http.HandlerFunc,
+	writer http.ResponseWriter, req *http.Request) {
+	if rec := recover(); rec != nil {
+		handler(writer, req)
+	}
 }

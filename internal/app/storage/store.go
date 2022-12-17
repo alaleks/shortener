@@ -29,7 +29,7 @@ type Producer interface {
 	Add(longURL, userID string) (string, error)
 	AddBatch(longURL, userID, corID string) string
 	Update(uid string)
-	DelUrls(userID string, shortsUID ...string)
+	DelUrls(userID string, shortsUID ...string) error
 }
 
 type Consumer interface {

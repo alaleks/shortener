@@ -10,10 +10,17 @@ import (
 
 type Handlers struct {
 	Storage *storage.Store
-	Pool    chan struct {
-		UserID string
-		Data   []string
-	}
+	Pool    Pool
+}
+
+type Pool struct {
+	Worker int
+	In     chan In
+}
+
+type In struct {
+	UserID    string
+	ShortURLS []string
 }
 
 var (
@@ -50,10 +57,7 @@ type OutShortenBatch struct {
 func New(conf config.Configurator) *Handlers {
 	handlers := Handlers{
 		Storage: storage.InitStore(conf),
-		Pool: make(chan struct {
-			UserID string
-			Data   []string
-		}, runtime.NumCPU()),
+		Pool:    Pool{Worker: runtime.NumCPU(), In: make(chan In)},
 	}
 
 	return &handlers

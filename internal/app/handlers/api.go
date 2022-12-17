@@ -6,9 +6,12 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"runtime"
 
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/alaleks/shortener/internal/app/storage"
+	jobqueue "github.com/dirkaholic/kyoo"
+	"github.com/dirkaholic/kyoo/job"
 	"github.com/gorilla/mux"
 )
 
@@ -203,10 +206,36 @@ func (h *Handlers) ShortenDelete(writer http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	h.Pool <- struct {
-		UserID string
-		Data   []string
-	}{UserID: userID, Data: shortUIDForDel}
+	h.Storage.Store.DelUrls(userID, checkShortUID(shortUIDForDel...)...)
 
 	writer.WriteHeader(http.StatusAccepted)
+}
+
+func (h *Handlers) ShortenDeleteAsync() func(writer http.ResponseWriter, req *http.Request) {
+	queue := jobqueue.NewJobQueue(runtime.NumCPU() * 2)
+	queue.Start()
+
+	return func(writer http.ResponseWriter, req *http.Request) {
+
+		var (
+			userID         string
+			shortUIDForDel []string
+		)
+
+		if req.URL.User != nil {
+			userID = req.URL.User.Username()
+		}
+
+		if err := json.NewDecoder(req.Body).Decode(&shortUIDForDel); err != nil {
+			http.Error(writer, err.Error(), http.StatusBadRequest)
+
+			return
+		}
+
+		queue.Submit(&job.FuncExecutorJob{Func: func() error {
+			return h.Storage.Store.DelUrls(userID, checkShortUID(shortUIDForDel...)...)
+		}})
+
+		writer.WriteHeader(http.StatusAccepted)
+	}
 }

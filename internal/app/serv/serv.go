@@ -15,12 +15,13 @@ import (
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
 	"github.com/alaleks/shortener/internal/app/serv/middleware/auth"
 	"github.com/alaleks/shortener/internal/app/serv/middleware/compress"
+	muxhandlers "github.com/gorilla/handlers"
 )
 
 const (
-	defaultTimeout           = 30 * time.Second
-	defaultReadHeaderTimeout = 30 * time.Second
-	defaultIdleTimeout       = 30 * time.Second
+	defaultTimeout           = time.Second
+	defaultReadHeaderTimeout = 2 * time.Second
+	defaultIdleTimeout       = 15 * time.Second
 	maxHeaderBytes           = 4096
 )
 
@@ -38,8 +39,8 @@ func New(sizeUID int) *AppServer {
 	)
 
 	server := &http.Server{
-		Handler: middleware.New(compress.Compression, compress.Unpacking, auth.Authorization).
-			Configure(router.Create(appHandler)),
+		Handler: muxhandlers.RecoveryHandler()(middleware.New(compress.Compression, compress.Unpacking, auth.Authorization).
+			Configure(router.Create(appHandler))),
 		ReadTimeout:       defaultTimeout,
 		WriteTimeout:      defaultTimeout,
 		IdleTimeout:       defaultIdleTimeout,

@@ -9,7 +9,6 @@ import (
 
 func Create(handler *handlers.Handlers) http.Handler {
 	mux := mux.NewRouter()
-	go handler.DeletingShorURL()
 	mux.HandleFunc("/", handler.ShortenURL).Methods(http.MethodPost)
 	mux.HandleFunc("/ping", handler.Ping).Methods(http.MethodGet)
 	mux.HandleFunc("/{uid}", handler.ParseShortURL).Methods(http.MethodGet)
@@ -17,7 +16,7 @@ func Create(handler *handlers.Handlers) http.Handler {
 	mux.HandleFunc("/api/{uid}/statistics", handler.GetStatAPI).Methods(http.MethodGet)
 	mux.HandleFunc("/api/user/urls", handler.GetUsersURL).Methods(http.MethodGet)
 	mux.HandleFunc("/api/shorten/batch", handler.ShortenURLBatch).Methods(http.MethodPost)
-	mux.HandleFunc("/api/user/urls", handler.ShortenDelete).Methods(http.MethodDelete)
+	mux.HandleFunc("/api/user/urls", handler.ShortenDeleteAsync()).Methods(http.MethodDelete)
 
 	return mux
 }

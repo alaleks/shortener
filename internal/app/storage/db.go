@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	MaxIdleConns = 5
-	MaxOpenConns = 50
+	MaxIdleConns = 25
+	MaxOpenConns = 25
 	MaxLifetime  = time.Hour
 )
 
@@ -296,12 +296,15 @@ func (d *DB) GetUrlsUser(userID string) ([]URLUser, error) {
 	return usersURL, nil
 }
 
-func (d *DB) DelUrls(userID string, shortsUID ...string) {
+func (d *DB) DelUrls(userID string, shortsUID ...string) error {
 	if d.Ping() != nil || (len(shortsUID) == 0 || userID == "") {
-		return
+		return ErrDBConnection
 	}
 
-	d.db.Model(models.Urls{}).
+	res := d.db.Model(models.Urls{}).
 		Where("short_uid IN ? AND uid = ?", shortsUID, userID).
 		Updates(models.Urls{Removed: true})
+
+	return res.Error
+
 }
