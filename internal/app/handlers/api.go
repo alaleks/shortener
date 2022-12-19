@@ -15,19 +15,13 @@ import (
 
 func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) {
 	var (
-		input  InputShorten
-		output OutputShorten
-		userID string
+		input      InputShorten
+		output     OutputShorten
+		userID     string
+		statusHTTP = http.StatusCreated
 	)
 
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusBadRequest)
-
-		return
-	}
-
-	if err := json.Unmarshal(body, &input); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(&input); err != nil {
 		output.Err = err.Error()
 	}
 
@@ -43,18 +37,16 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 
 	shortURL, err := h.Storage.Store.Add(input.URL, userID)
 	if err != nil {
-		status := http.StatusInternalServerError
-
 		if errors.Is(err, storage.ErrAlreadyExists) {
-			status = http.StatusConflict
+			statusHTTP = http.StatusConflict
+		} else {
+			writer.WriteHeader(http.StatusInternalServerError)
+
+			return
 		}
-
-		writer.WriteHeader(status)
-
-		return
 	}
 
-	writer.WriteHeader(http.StatusCreated)
+	writer.WriteHeader(statusHTTP)
 
 	if output.Err == "" {
 		output.Success = true
