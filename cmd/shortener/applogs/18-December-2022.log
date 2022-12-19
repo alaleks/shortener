@@ -1,8 +1,0 @@
-INFO: 2022/12/18 21:06:11 main.go:22: goroutine 1 [running]:
-runtime/debug.Stack()
-	/usr/local/go/src/runtime/debug/stack.go:24 +0x65
-main.main.func1()
-	/home/alex/Projects/Go/practicum/shortener/cmd/shortener/main.go:21 +0x66
-main.main()
-	/home/alex/Projects/Go/practicum/shortener/cmd/shortener/main.go:28 +0xd2
-

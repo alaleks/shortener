@@ -1,67 +1,73 @@
 package pool
 
 import (
+	"fmt"
 	"runtime"
 )
 
 type Pool struct {
-	Done      chan struct{}
-	WorkerNum int
-	Funnel    chan *Job
-	Workers   []*Worker
-	Jobs      []*Job
+	done      chan struct{}
+	funnel    chan *Job
+	workerNum int
+	workers   []*Worker
+	jobs      []*Job
 }
 
 func NewPool(jobs []*Job) *Pool {
 	limit := runtime.NumCPU()
 
 	return &Pool{
-		Jobs:      jobs,
-		WorkerNum: limit,
-		Funnel:    make(chan *Job, limit),
-		Done:      make(chan struct{}),
+		jobs:      jobs,
+		workerNum: limit,
+		funnel:    make(chan *Job, limit),
+		done:      make(chan struct{}),
 	}
 }
 
 func (pool *Pool) AddJob(job *Job) {
-	pool.Funnel <- job
+	pool.funnel <- job
 }
 
 func (pool *Pool) Start() {
-	for i := 1; i <= pool.WorkerNum; i++ {
-		worker := NewWorker(pool.Funnel, i)
-		pool.Workers = append(pool.Workers, worker)
+	for i := 1; i <= pool.workerNum; i++ {
+		worker := NewWorker(pool.funnel, i)
+		pool.workers = append(pool.workers, worker)
 		go worker.Start()
 	}
 
-	for i := range pool.Jobs {
-		pool.Funnel <- pool.Jobs[i]
+	for i := range pool.jobs {
+		pool.funnel <- pool.jobs[i]
 	}
 
-	<-pool.Done
+	<-pool.done
 }
 
 func (pool *Pool) Stop() {
-	for i := range pool.Workers {
-		pool.Workers[i].Stop()
+	if len(pool.workers) == 0 {
+		return
 	}
 
-	pool.Done <- struct{}{}
+	for i := range pool.workers {
+		fmt.Println("stop", i)
+		pool.workers[i].Stop()
+	}
+
+	pool.done <- struct{}{}
 }
 
 type Job struct {
-	Err    error
-	ID     any
-	Data   any
-	Action func(id, data any) error
+	err    error
+	id     any
+	data   any
+	action func(id, data any) error
 }
 
 func NewJob(action func(id, data any) error, id, data any) *Job {
-	return &Job{Action: action, ID: id, Data: data}
+	return &Job{action: action, id: id, data: data}
 }
 
 func RunJob(job *Job) {
-	job.Err = job.Action(job.ID, job.Data)
+	job.err = job.action(job.id, job.data)
 }
 
 type Worker struct {

@@ -24,6 +24,7 @@ const (
 	defaultReadHeaderTimeout = 2 * time.Second
 	defaultIdleTimeout       = 15 * time.Second
 	maxHeaderBytes           = 4096
+	timeOutClosedServer      = 2 * time.Second
 )
 
 type AppServer struct {
@@ -82,7 +83,8 @@ func catchSignal(appServer *AppServer) {
 	for {
 		select {
 		case <-termSignals:
-			time.Sleep(2 * time.Second)
+			time.Sleep(timeOutClosedServer)
+
 			appServer.handlers.Pool.Stop()
 
 			if err := appServer.handlers.Storage.Store.Close(); err != nil {
