@@ -150,6 +150,7 @@ func (ds *DefaultStorage) DelUrls(userID string, shortsUID ...string) error {
 
 		if !checkShortUID {
 			ds.mu.Unlock()
+
 			continue
 		}
 

@@ -6,12 +6,10 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"runtime"
 
+	"github.com/alaleks/shortener/internal/app/pool"
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/alaleks/shortener/internal/app/storage"
-	jobqueue "github.com/dirkaholic/kyoo"
-	"github.com/dirkaholic/kyoo/job"
 	"github.com/gorilla/mux"
 )
 
@@ -44,18 +42,19 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 	writer.Header().Set("Content-Type", "application/json")
 
 	shortURL, err := h.Storage.Store.Add(input.URL, userID)
-
 	if err != nil {
-		if errors.Is(err, storage.ErrAlreadyExists) {
-			writer.WriteHeader(http.StatusConflict)
-		} else {
-			writer.WriteHeader(http.StatusInternalServerError)
+		status := http.StatusInternalServerError
 
-			return
+		if errors.Is(err, storage.ErrAlreadyExists) {
+			status = http.StatusConflict
 		}
-	} else {
-		writer.WriteHeader(http.StatusCreated)
+
+		writer.WriteHeader(status)
+
+		return
 	}
+
+	writer.WriteHeader(http.StatusCreated)
 
 	if output.Err == "" {
 		output.Success = true
@@ -211,12 +210,10 @@ func (h *Handlers) ShortenDelete(writer http.ResponseWriter, req *http.Request) 
 	writer.WriteHeader(http.StatusAccepted)
 }
 
-func (h *Handlers) ShortenDeleteAsync() func(writer http.ResponseWriter, req *http.Request) {
-	queue := jobqueue.NewJobQueue(runtime.NumCPU() * 2)
-	queue.Start()
+func (h *Handlers) ShortenDeletePool() func(writer http.ResponseWriter, req *http.Request) {
+	h.Pool.Start()
 
 	return func(writer http.ResponseWriter, req *http.Request) {
-
 		var (
 			userID         string
 			shortUIDForDel []string
@@ -232,9 +229,25 @@ func (h *Handlers) ShortenDeleteAsync() func(writer http.ResponseWriter, req *ht
 			return
 		}
 
-		queue.Submit(&job.FuncExecutorJob{Func: func() error {
-			return h.Storage.Store.DelUrls(userID, checkShortUID(shortUIDForDel...)...)
-		}})
+		go func() {
+			job := pool.NewJob(func(id, data any) error {
+				userID, ok := id.(string)
+
+				if !ok {
+					return ErrInvalidUID
+				}
+
+				shortsUID, ok := data.([]string)
+
+				if !ok {
+					return storage.ErrInvalidData
+				}
+
+				return h.Storage.Store.DelUrls(userID, checkShortUID(shortsUID...)...)
+			}, userID, shortUIDForDel)
+
+			h.Pool.AddJob(job)
+		}()
 
 		writer.WriteHeader(http.StatusAccepted)
 	}

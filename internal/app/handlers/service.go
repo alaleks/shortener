@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"net/http"
 	"strings"
 
 	"github.com/alaleks/shortener/internal/app/service"
@@ -42,11 +41,4 @@ func checkShortUID(shortUID ...string) []string {
 	}
 
 	return correctShortUID
-}
-
-func (h *Handlers) RecoverHandler(handler http.HandlerFunc,
-	writer http.ResponseWriter, req *http.Request) {
-	if rec := recover(); rec != nil {
-		handler(writer, req)
-	}
 }

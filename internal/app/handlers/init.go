@@ -2,23 +2,26 @@ package handlers
 
 import (
 	"errors"
-	"runtime"
 
 	"github.com/alaleks/shortener/internal/app/config"
+	"github.com/alaleks/shortener/internal/app/pool"
 	"github.com/alaleks/shortener/internal/app/storage"
 )
 
 type Handlers struct {
 	Storage *storage.Store
-	Pool    Pool
+	Pool    pool.Pool
 }
 
 type Pool struct {
-	Worker int
-	In     chan In
+	Out     chan DelData
+	Jobs    chan DelData
+	Results chan DelData
+	Done    chan struct{}
+	Worker  int
 }
 
-type In struct {
+type DelData struct {
 	UserID    string
 	ShortURLS []string
 }
@@ -55,9 +58,11 @@ type OutShortenBatch struct {
 }
 
 func New(conf config.Configurator) *Handlers {
+	var jobs []*pool.Job
+
 	handlers := Handlers{
 		Storage: storage.InitStore(conf),
-		Pool:    Pool{Worker: runtime.NumCPU(), In: make(chan In)},
+		Pool:    *pool.NewPool(jobs),
 	}
 
 	return &handlers

@@ -11,6 +11,7 @@ import (
 
 	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/handlers"
+	applogger "github.com/alaleks/shortener/internal/app/logger"
 	"github.com/alaleks/shortener/internal/app/router"
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
 	"github.com/alaleks/shortener/internal/app/serv/middleware/auth"
@@ -19,21 +20,23 @@ import (
 )
 
 const (
-	defaultTimeout           = time.Second
+	defaultTimeout           = 2 * time.Second
 	defaultReadHeaderTimeout = 2 * time.Second
 	defaultIdleTimeout       = 15 * time.Second
 	maxHeaderBytes           = 4096
 )
 
 type AppServer struct {
-	server   *http.Server
-	handlers *handlers.Handlers
-	conf     config.Configurator
+	server    *http.Server
+	handlers  *handlers.Handlers
+	conf      config.Configurator
+	AppLogger *applogger.LogDir
 }
 
 func New(sizeUID int) *AppServer {
 	var (
 		appConf    config.Configurator = config.New(config.Options{Env: true, Flag: true}, sizeUID)
+		applogger                      = applogger.New()
 		appHandler                     = handlers.New(appConf)
 		auth                           = auth.TurnOn(appHandler.Storage, appConf.GetSecretKey())
 	)
@@ -50,12 +53,12 @@ func New(sizeUID int) *AppServer {
 		MaxHeaderBytes:    maxHeaderBytes,
 		TLSNextProto:      nil,
 		ConnState:         nil,
-		ErrorLog:          nil,
+		ErrorLog:          applogger.Error(),
 		BaseContext:       nil,
 		ConnContext:       nil,
 	}
 
-	return &AppServer{server: server, handlers: appHandler, conf: appConf}
+	return &AppServer{server: server, handlers: appHandler, conf: appConf, AppLogger: applogger}
 }
 
 func Run(appServer *AppServer) error {
@@ -79,6 +82,9 @@ func catchSignal(appServer *AppServer) {
 	for {
 		select {
 		case <-termSignals:
+			time.Sleep(2 * time.Second)
+			appServer.handlers.Pool.Stop()
+
 			if err := appServer.handlers.Storage.Store.Close(); err != nil {
 				log.Fatal(err)
 			}

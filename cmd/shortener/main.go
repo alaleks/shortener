@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/alaleks/shortener/internal/app/serv"
@@ -11,8 +10,9 @@ import (
 func main() {
 	sizeUID := 5
 	server := serv.New(sizeUID)
+	fatalLog := server.AppLogger.Fatal()
 
 	if err := serv.Run(server); !errors.Is(err, http.ErrServerClosed) {
-		log.Fatal(err)
+		fatalLog.Println(err)
 	}
 }

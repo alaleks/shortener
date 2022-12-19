@@ -26,6 +26,7 @@ const (
 var (
 	ErrAlreadyExists = errors.New("such an entry exists in the database")
 	ErrDBConnection  = errors.New("failed to check database connection")
+	ErrInvalidData   = errors.New("data invalid")
 )
 
 type DB struct {
@@ -185,7 +186,7 @@ func (d *DB) Update(uid string) {
 
 	res := d.db.Where("short_uid = ?", uid).First(&url)
 
-	if res.Error != nil {
+	if res.Error != nil || res.RowsAffected == 0 {
 		return
 	}
 
@@ -297,14 +298,22 @@ func (d *DB) GetUrlsUser(userID string) ([]URLUser, error) {
 }
 
 func (d *DB) DelUrls(userID string, shortsUID ...string) error {
-	if d.Ping() != nil || (len(shortsUID) == 0 || userID == "") {
+	if d.Ping() != nil {
 		return ErrDBConnection
 	}
 
+	if len(shortsUID) == 0 || userID == "" {
+		return ErrInvalidData
+	}
+
+	uid, err := strconv.Atoi(userID)
+	if err != nil {
+		return ErrUserIDNotValid
+	}
+
 	res := d.db.Model(models.Urls{}).
-		Where("short_uid IN ? AND uid = ?", shortsUID, userID).
+		Where("short_uid IN ? AND uid = ?", shortsUID, uid).
 		Updates(models.Urls{Removed: true})
 
 	return res.Error
-
 }

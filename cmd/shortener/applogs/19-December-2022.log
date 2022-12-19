@@ -1,0 +1,4 @@
+FATAL: 2022/12/19 12:57:29 main.go:17: listen tcp 127.0.0.1:8080: bind: address already in use
+FATAL: 2022/12/19 13:08:07 main.go:16: listen tcp 127.0.0.1:8080: bind: address already in use
+FATAL: 2022/12/19 13:08:15 main.go:16: listen tcp 127.0.0.1:8080: bind: address already in use
+FATAL: 2022/12/19 13:08:27 main.go:16: listen tcp 127.0.0.1:8080: bind: address already in use
