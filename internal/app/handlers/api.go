@@ -202,42 +202,38 @@ func (h *Handlers) ShortenDelete(writer http.ResponseWriter, req *http.Request) 
 	writer.WriteHeader(http.StatusAccepted)
 }
 
-func (h *Handlers) ShortenDeletePool() func(writer http.ResponseWriter, req *http.Request) {
-	go h.Multiplex.Run()
+func (h *Handlers) ShortenDeletePool(writer http.ResponseWriter, req *http.Request) {
+	var (
+		userID         string
+		shortUIDForDel []string
+	)
 
-	return func(writer http.ResponseWriter, req *http.Request) {
-		var (
-			userID         string
-			shortUIDForDel []string
-		)
-
-		if req.URL.User != nil {
-			userID = req.URL.User.Username()
-		}
-
-		if err := json.NewDecoder(req.Body).Decode(&shortUIDForDel); err != nil {
-			http.Error(writer, err.Error(), http.StatusBadRequest)
-
-			return
-		}
-
-		job := DelData{UserID: userID,
-			ShortURLS: checkShortUID(shortUIDForDel...)}
-
-		h.Multiplex.QueueJobs <- wpool.Job{Data: job,
-			Action: func(data any) error {
-				dataForDel, ok := data.(DelData)
-
-				if !ok {
-					return storage.ErrInvalidData
-				}
-
-				err := h.Storage.Store.DelUrls(dataForDel.UserID,
-					dataForDel.ShortURLS...)
-
-				return err
-			}}
-
-		writer.WriteHeader(http.StatusAccepted)
+	if req.URL.User != nil {
+		userID = req.URL.User.Username()
 	}
+
+	if err := json.NewDecoder(req.Body).Decode(&shortUIDForDel); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	job := DelData{UserID: userID,
+		ShortURLS: checkShortUID(shortUIDForDel...)}
+
+	h.Multiplex.QueueJobs <- wpool.Job{Data: job,
+		Action: func(data any) error {
+			dataForDel, ok := data.(DelData)
+
+			if !ok {
+				return storage.ErrInvalidData
+			}
+
+			err := h.Storage.Store.DelUrls(dataForDel.UserID,
+				dataForDel.ShortURLS...)
+
+			return err
+		}}
+
+	writer.WriteHeader(http.StatusAccepted)
 }
