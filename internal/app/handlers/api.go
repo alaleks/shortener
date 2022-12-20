@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/alaleks/shortener/internal/app/pool"
+	wpool "github.com/alaleks/shortener/internal/app/pool"
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/alaleks/shortener/internal/app/storage"
 	"github.com/gorilla/mux"
@@ -203,7 +203,7 @@ func (h *Handlers) ShortenDelete(writer http.ResponseWriter, req *http.Request) 
 }
 
 func (h *Handlers) ShortenDeletePool() func(writer http.ResponseWriter, req *http.Request) {
-	h.Pool.Start()
+	go h.Multiplex.Run()
 
 	return func(writer http.ResponseWriter, req *http.Request) {
 		var (
@@ -221,25 +221,22 @@ func (h *Handlers) ShortenDeletePool() func(writer http.ResponseWriter, req *htt
 			return
 		}
 
-		go func() {
-			job := pool.NewJob(func(id, data any) error {
-				userID, ok := id.(string)
+		job := DelData{UserID: userID,
+			ShortURLS: checkShortUID(shortUIDForDel...)}
 
-				if !ok {
-					return ErrInvalidUID
-				}
-
-				shortsUID, ok := data.([]string)
+		h.Multiplex.QueueJobs <- wpool.Job{Data: job,
+			Action: func(data any) error {
+				dataForDel, ok := data.(DelData)
 
 				if !ok {
 					return storage.ErrInvalidData
 				}
 
-				return h.Storage.Store.DelUrls(userID, checkShortUID(shortsUID...)...)
-			}, userID, shortUIDForDel)
+				err := h.Storage.Store.DelUrls(dataForDel.UserID,
+					dataForDel.ShortURLS...)
 
-			h.Pool.AddJob(job)
-		}()
+				return err
+			}}
 
 		writer.WriteHeader(http.StatusAccepted)
 	}

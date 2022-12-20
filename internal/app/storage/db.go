@@ -123,6 +123,9 @@ func (d *DB) Add(longURL, userID string) (string, error) {
 		uri.UID = uint(userIDtoInt)
 	}
 
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	rowsAffected := writeURL(d.db, uri)
 
 	if rowsAffected == 0 {
@@ -182,6 +185,9 @@ func (d *DB) Update(uid string) {
 		return
 	}
 
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	var url models.Urls
 
 	res := d.db.Where("short_uid = ?", uid).First(&url)
@@ -190,16 +196,17 @@ func (d *DB) Update(uid string) {
 		return
 	}
 
-	d.mu.Lock()
 	url.Statistics++
 	d.db.Save(&url)
-	d.mu.Unlock()
 }
 
 func (d *DB) GetURL(uid string) (string, error) {
 	if d.Ping() != nil {
 		return "", ErrDBConnection
 	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	var url models.Urls
 
@@ -305,6 +312,9 @@ func (d *DB) DelUrls(userID string, shortsUID ...string) error {
 	if len(shortsUID) == 0 || userID == "" {
 		return ErrInvalidData
 	}
+
+	d.mu.Lock()
+	defer d.mu.Unlock()
 
 	uid, err := strconv.Atoi(userID)
 	if err != nil {

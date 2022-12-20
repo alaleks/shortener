@@ -1,98 +1,99 @@
-package pool
+package wpool
 
 import (
-	"fmt"
 	"runtime"
 )
 
-type Pool struct {
-	done      chan struct{}
-	funnel    chan *Job
-	workerNum int
-	workers   []*Worker
-	jobs      []*Job
-}
-
-func NewPool(jobs []*Job) *Pool {
-	limit := runtime.NumCPU()
-
-	return &Pool{
-		jobs:      jobs,
-		workerNum: limit,
-		funnel:    make(chan *Job, limit),
-		done:      make(chan struct{}),
-	}
-}
-
-func (pool *Pool) AddJob(job *Job) {
-	pool.funnel <- job
-}
-
-func (pool *Pool) Start() {
-	for i := 1; i <= pool.workerNum; i++ {
-		worker := NewWorker(pool.funnel, i)
-		pool.workers = append(pool.workers, worker)
-		go worker.Start()
-	}
-
-	for i := range pool.jobs {
-		pool.funnel <- pool.jobs[i]
-	}
-
-	<-pool.done
-}
-
-func (pool *Pool) Stop() {
-	if len(pool.workers) == 0 {
-		return
-	}
-
-	for i := range pool.workers {
-		fmt.Println("stop", i)
-		pool.workers[i].Stop()
-	}
-
-	pool.done <- struct{}{}
-}
-
 type Job struct {
-	err    error
-	id     any
-	data   any
-	action func(id, data any) error
-}
-
-func NewJob(action func(id, data any) error, id, data any) *Job {
-	return &Job{action: action, id: id, data: data}
-}
-
-func RunJob(job *Job) {
-	job.err = job.action(job.id, job.data)
+	Data   any
+	Action func(data any) error
 }
 
 type Worker struct {
-	JobCh chan *Job
-	Done  chan struct{}
-	ID    int
+	jobCh chan Job
+	done  chan struct{}
+	wPool chan chan Job
 }
 
-func NewWorker(jobCh chan *Job, id int) *Worker {
-	return &Worker{JobCh: jobCh, ID: id, Done: make(chan struct{})}
+func NewWorker(wPool chan chan Job) Worker {
+	return Worker{
+		wPool: wPool,
+		done:  make(chan struct{}),
+		jobCh: make(chan Job)}
 }
 
-func (worker *Worker) Start() {
+func (wr Worker) Start() {
+	go func() {
+		for {
+			wr.wPool <- wr.jobCh
+
+			select {
+			case job := <-wr.jobCh:
+				job.Action(job.Data)
+			case <-wr.done:
+
+				return
+			}
+		}
+	}()
+}
+
+func (wr Worker) Stop() {
+	go func() {
+		wr.done <- struct{}{}
+	}()
+}
+
+type Multiplex struct {
+	wPool     chan chan Job
+	QueueJobs chan Job
+	done      chan struct{}
+}
+
+func NewMultiplex() *Multiplex {
+	return &Multiplex{wPool: make(chan chan Job,
+		runtime.NumCPU()),
+		QueueJobs: make(chan Job, runtime.NumCPU()),
+		done:      make(chan struct{})}
+}
+
+func (m *Multiplex) Run() {
+	var workers []Worker
+
+	defer func() {
+		for i := range workers {
+			workers[i].Stop()
+		}
+	}()
+
+	for i := 1; i <= runtime.NumCPU(); i++ {
+		worker := NewWorker(m.wPool)
+		workers = append(workers, worker)
+		worker.Start()
+	}
+
+	go m.balancer()
+
+	<-m.done
+}
+
+func (m *Multiplex) Stop() {
+	go func() {
+		m.done <- struct{}{}
+	}()
+}
+
+func (m *Multiplex) balancer() {
 	for {
 		select {
-		case job := <-worker.JobCh:
-			RunJob(job)
-		case <-worker.Done:
+		case job := <-m.QueueJobs:
+			go func(job Job) {
+				jobCh := <-m.wPool
+				jobCh <- job
+			}(job)
+		case <-m.done:
+
 			return
 		}
 	}
-}
-
-func (worker *Worker) Stop() {
-	go func() {
-		worker.Done <- struct{}{}
-	}()
 }

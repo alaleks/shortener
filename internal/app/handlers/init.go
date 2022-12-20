@@ -4,21 +4,13 @@ import (
 	"errors"
 
 	"github.com/alaleks/shortener/internal/app/config"
-	"github.com/alaleks/shortener/internal/app/pool"
+	wpool "github.com/alaleks/shortener/internal/app/pool"
 	"github.com/alaleks/shortener/internal/app/storage"
 )
 
 type Handlers struct {
-	Storage *storage.Store
-	Pool    pool.Pool
-}
-
-type Pool struct {
-	Out     chan DelData
-	Jobs    chan DelData
-	Results chan DelData
-	Done    chan struct{}
-	Worker  int
+	Storage   *storage.Store
+	Multiplex *wpool.Multiplex
 }
 
 type DelData struct {
@@ -58,12 +50,9 @@ type OutShortenBatch struct {
 }
 
 func New(conf config.Configurator) *Handlers {
-	var jobs []*pool.Job
-
 	handlers := Handlers{
-		Storage: storage.InitStore(conf),
-		Pool:    *pool.NewPool(jobs),
+		Storage:   storage.InitStore(conf),
+		Multiplex: wpool.NewMultiplex(),
 	}
-
 	return &handlers
 }
