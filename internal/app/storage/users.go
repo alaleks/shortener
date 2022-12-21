@@ -18,16 +18,17 @@ type URLUser struct {
 func (ds *DefaultStorage) GetUrlsUser(userID string) ([]URLUser, error) {
 	uid, err := strconv.Atoi(userID)
 	if err != nil {
-		return []URLUser{}, ErrUserIDNotValid
+		return nil, ErrUserIDNotValid
 	}
 
 	ds.mu.RLock()
-	defer ds.mu.RUnlock()
-
 	uidsShortURL := ds.users[uint(uid)]
+
 	urls := make([]URLUser, 0, len(uidsShortURL))
 
 	if len(uidsShortURL) == 0 {
+		ds.mu.RUnlock()
+
 		return urls, ErrUserUrlsEmpty
 	}
 
@@ -36,6 +37,8 @@ func (ds *DefaultStorage) GetUrlsUser(userID string) ([]URLUser, error) {
 			urls = append(urls, URLUser{ShortURL: ds.conf.GetBaseURL() + shortUID, OriginalURL: originalURL})
 		}
 	}
+
+	ds.mu.RUnlock()
 
 	if len(urls) == 0 {
 		return urls, ErrUserUrlsEmpty

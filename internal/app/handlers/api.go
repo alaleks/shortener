@@ -18,7 +18,7 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 		input      InputShorten
 		output     OutputShorten
 		userID     string
-		statusHTTP = http.StatusCreated
+		httpStatus = http.StatusCreated
 	)
 
 	if err := json.NewDecoder(req.Body).Decode(&input); err != nil {
@@ -38,7 +38,7 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 	shortURL, err := h.Storage.Store.Add(input.URL, userID)
 	if err != nil {
 		if errors.Is(err, storage.ErrAlreadyExists) {
-			statusHTTP = http.StatusConflict
+			httpStatus = http.StatusConflict
 		} else {
 			writer.WriteHeader(http.StatusInternalServerError)
 
@@ -46,7 +46,7 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 		}
 	}
 
-	writer.WriteHeader(statusHTTP)
+	writer.WriteHeader(httpStatus)
 
 	if output.Err == "" {
 		output.Success = true
@@ -218,10 +218,11 @@ func (h *Handlers) ShortenDeletePool(writer http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	job := DelData{UserID: userID,
+	job := DelData{
+		UserID:    userID,
 		ShortURLS: checkShortUID(shortUIDForDel...)}
 
-	h.Multiplex.QueueJobs <- wpool.Job{Data: job,
+	h.Multiplex.AddQueue(wpool.Job{Data: job,
 		Action: func(data any) error {
 			dataForDel, ok := data.(DelData)
 
@@ -233,7 +234,7 @@ func (h *Handlers) ShortenDeletePool(writer http.ResponseWriter, req *http.Reque
 				dataForDel.ShortURLS...)
 
 			return err
-		}}
+		}})
 
 	writer.WriteHeader(http.StatusAccepted)
 }

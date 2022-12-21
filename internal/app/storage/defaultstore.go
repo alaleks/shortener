@@ -96,8 +96,8 @@ func (ds *DefaultStorage) AddBatch(longURL, userID, corID string) string {
 
 func (ds *DefaultStorage) GetURL(uid string) (string, error) {
 	ds.mu.RLock()
-	defer ds.mu.RUnlock()
 	uri, check := ds.urls[uid]
+	ds.mu.RUnlock()
 
 	if !check {
 		return "", ErrUIDNotValid
@@ -140,45 +140,42 @@ func (ds *DefaultStorage) Stat(uid string) (Statistics, error) {
 }
 
 func (ds *DefaultStorage) DelUrls(userID string, shortsUID ...string) error {
-	if userID == "" {
-		return ErrUIDNotValid
+	uid, err := strconv.Atoi(userID)
+
+	if err != nil {
+		return ErrUserIDNotValid
 	}
 
-	for _, shortUID := range shortsUID {
-		ds.mu.Lock()
-		_, checkShortUID := ds.urls[shortUID]
+	// key -> shortID, value -> found in existing.
+	shortIDs := make(map[string]bool)
 
-		if !checkShortUID {
-			ds.mu.Unlock()
-
-			continue
-		}
-
-		uid, err := strconv.Atoi(userID)
-		if err != nil {
-			ds.mu.Unlock()
-
-			return ErrUIDNotValid
-		}
-
-		userShortsUID, checkUser := ds.users[uint(uid)]
-
-		if !checkUser {
-			ds.mu.Unlock()
-
-			return ErrUserUrlsEmpty
-		}
-
-		for _, userShortUID := range userShortsUID {
-			if userShortUID == shortUID {
-				ds.urls[shortUID].Removed = true
-
-				break
-			}
-		}
-
-		ds.mu.Unlock()
+	for _, shortID := range shortsUID {
+		shortIDs[shortID] = false
 	}
+
+	ds.mu.RLock()
+	userShortsUID, ok := ds.users[uint(uid)]
+
+	if !ok {
+		ds.mu.RUnlock()
+		return ErrInvalidData
+	}
+
+	for _, userSID := range userShortsUID {
+		if _, ok := shortIDs[userSID]; ok {
+			shortIDs[userSID] = true
+		}
+	}
+
+	ds.mu.RUnlock()
+
+	ds.mu.Lock()
+	for shortID := range shortIDs {
+		if uri, ok := ds.urls[shortID]; ok && !uri.Removed {
+			ds.urls[shortID].Removed = true
+		}
+	}
+	ds.mu.Unlock()
 
 	return nil
 }

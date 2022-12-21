@@ -15,14 +15,14 @@ type Worker struct {
 	wPool chan chan Job
 }
 
-func NewWorker(wPool chan chan Job) Worker {
-	return Worker{
+func NewWorker(wPool chan chan Job) *Worker {
+	return &Worker{
 		wPool: wPool,
 		done:  make(chan struct{}),
 		jobCh: make(chan Job)}
 }
 
-func (wr Worker) Start() {
+func (wr *Worker) Start() {
 	go func() {
 		for {
 			wr.wPool <- wr.jobCh
@@ -38,27 +38,27 @@ func (wr Worker) Start() {
 	}()
 }
 
-func (wr Worker) Stop() {
+func (wr *Worker) Stop() {
 	go func() {
-		wr.done <- struct{}{}
+		close(wr.done)
 	}()
 }
 
 type Multiplex struct {
 	wPool     chan chan Job
-	QueueJobs chan Job
+	queueJobs chan Job
 	done      chan struct{}
 }
 
 func NewMultiplex() *Multiplex {
-	return &Multiplex{wPool: make(chan chan Job,
-		runtime.NumCPU()),
-		QueueJobs: make(chan Job, runtime.NumCPU()),
+	return &Multiplex{
+		wPool:     make(chan chan Job, runtime.NumCPU()),
+		queueJobs: make(chan Job, runtime.NumCPU()),
 		done:      make(chan struct{})}
 }
 
 func (m *Multiplex) Run() {
-	var workers []Worker
+	var workers []*Worker
 
 	defer func() {
 		for i := range workers {
@@ -79,18 +79,26 @@ func (m *Multiplex) Run() {
 
 func (m *Multiplex) Stop() {
 	go func() {
-		m.done <- struct{}{}
+		close(m.done)
 	}()
+}
+
+func (m *Multiplex) AddQueue(job Job) {
+	m.queueJobs <- job
 }
 
 func (m *Multiplex) balancer() {
 	for {
 		select {
-		case job := <-m.QueueJobs:
-			go func(job Job) {
-				jobCh := <-m.wPool
-				jobCh <- job
-			}(job)
+		case job := <-m.queueJobs:
+			/*
+				go func(job Job) {
+					jobCh := <-m.wPool
+					jobCh <- job
+				}(job)
+			*/
+			jobCh := <-m.wPool
+			jobCh <- job
 		case <-m.done:
 
 			return

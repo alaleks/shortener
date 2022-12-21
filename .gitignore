@@ -14,8 +14,8 @@
 # Binaries
 cmd/shortener/main
 cmd/shortener/shortener
-cmd/logs
-cmd/logs/*
+cmd/applogs
+cmd/applogs/*
 
 
 # IDEs directories
