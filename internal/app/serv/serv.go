@@ -11,6 +11,7 @@ import (
 
 	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/handlers"
+	"github.com/alaleks/shortener/internal/app/logger"
 
 	"github.com/alaleks/shortener/internal/app/router"
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
@@ -28,6 +29,7 @@ const (
 type AppServer struct {
 	server   *http.Server
 	handlers *handlers.Handlers
+	Logger   *logger.AppLogger
 	conf     config.Configurator
 }
 
@@ -54,19 +56,15 @@ func New(sizeUID int) *AppServer {
 		ConnContext:       nil,
 	}
 
-	/*
-		// init logger
-		logger, err := logger.NewLogger()
-
-		if err == nil {
-			server.ErrorLog = log.New(logger, "", 0)
-		}
-	*/
+	// init logger
+	logger := logger.NewLogger()
+	server.ErrorLog = log.New(logger, "", 0)
 
 	return &AppServer{
 		server:   server,
 		handlers: appHandler,
 		conf:     appConf,
+		Logger:   logger,
 	}
 }
 
@@ -74,10 +72,6 @@ func Run(appServer *AppServer) error {
 	go catchSignal(appServer)
 
 	return appServer.server.ListenAndServe()
-}
-
-func (appServer *AppServer) WriteLog(msg string) {
-	appServer.server.ErrorLog.Fatal(msg)
 }
 
 func catchSignal(appServer *AppServer) {
