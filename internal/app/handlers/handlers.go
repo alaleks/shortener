@@ -68,7 +68,7 @@ func (h *Handlers) ParseShortURL(writer http.ResponseWriter, req *http.Request) 
 	if err != nil {
 		status := http.StatusBadRequest
 
-		if errors.Is(err, storage.ErrShortURLDeleted) {
+		if errors.Is(err, storage.ErrShortURLRemoved) {
 			status = http.StatusGone
 		}
 

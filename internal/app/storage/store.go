@@ -2,14 +2,17 @@ package storage
 
 import (
 	"errors"
+	"runtime"
 
 	"github.com/alaleks/shortener/internal/app/config"
+	"github.com/shmel1k/gop"
 )
 
-var ErrShortURLDeleted = errors.New("short URL has been removed")
+var ErrShortURLRemoved = errors.New("short URL has been removed")
 
 type Store struct {
 	Store Storage
+	Pool  gop.Pool
 }
 
 type Storage interface {
@@ -50,8 +53,16 @@ type Statistics struct {
 }
 
 func InitStore(conf config.Configurator) *Store {
+	pool := gop.NewPool(gop.Config{
+		MaxWorkers:         runtime.NumCPU(),
+		UnstoppableWorkers: runtime.NumCPU(),
+	})
+
 	if len([]rune(conf.GetDSN())) > 1 {
-		storeDB := &Store{Store: NewDB(conf)}
+		storeDB := &Store{
+			Store: NewDB(conf),
+			Pool:  pool,
+		}
 		// инициализируем базу данных
 		err := storeDB.Store.Init()
 
@@ -62,7 +73,11 @@ func InitStore(conf config.Configurator) *Store {
 		}
 	}
 
-	storeDefault := &Store{Store: NewDefault(conf)}
+	storeDefault := &Store{
+		Store: NewDefault(conf),
+		Pool:  pool,
+	}
+
 	// инициализируем файловое хранилище
 	_ = storeDefault.Store.Init()
 

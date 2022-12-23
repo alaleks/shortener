@@ -104,7 +104,7 @@ func (ds *DefaultStorage) GetURL(uid string) (string, error) {
 	}
 
 	if uri.Removed {
-		return uri.LongURL, ErrShortURLDeleted
+		return uri.LongURL, ErrShortURLRemoved
 	}
 
 	return uri.LongURL, nil
@@ -141,7 +141,6 @@ func (ds *DefaultStorage) Stat(uid string) (Statistics, error) {
 
 func (ds *DefaultStorage) DelUrls(userID string, shortsUID ...string) error {
 	uid, err := strconv.Atoi(userID)
-
 	if err != nil {
 		return ErrUserIDNotValid
 	}

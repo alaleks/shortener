@@ -36,7 +36,10 @@ type DB struct {
 }
 
 func NewDB(conf config.Configurator) *DB {
-	return &DB{conf: conf, mu: sync.RWMutex{}}
+	return &DB{
+		conf: conf,
+		mu:   sync.RWMutex{},
+	}
 }
 
 func (d *DB) Init() error {
@@ -192,8 +195,9 @@ func (d *DB) Update(uid string) {
 
 	d.mu.Lock()
 	url.Statistics++
-	d.db.Save(&url)
 	d.mu.Unlock()
+
+	d.db.Save(&url)
 }
 
 func (d *DB) GetURL(uid string) (string, error) {
@@ -210,7 +214,7 @@ func (d *DB) GetURL(uid string) (string, error) {
 	}
 
 	if url.Removed {
-		return url.LongURL, ErrShortURLDeleted
+		return url.LongURL, ErrShortURLRemoved
 	}
 
 	return url.LongURL, nil
@@ -245,21 +249,10 @@ func (d *DB) Create() uint {
 	}
 
 	user := models.Users{CreatedAt: time.Now()}
-
 	d.db.Create(&user)
 
 	return user.UID
 }
-
-/*
-func getUser(db *gorm.DB, uid int) models.Users {
-	var user models.Users
-
-	db.Where("uid = ?", uid).First(&user)
-
-	return user
-}
-*/
 
 func getUrlsUser(db *gorm.DB, uid uint) []models.Urls {
 	var urls []models.Urls
@@ -313,7 +306,9 @@ func (d *DB) DelUrls(userID string, shortsUID ...string) error {
 
 	res := d.db.Model(models.Urls{}).
 		Where("short_uid IN ? AND uid = ?", shortsUID, uid).
-		Updates(models.Urls{Removed: true})
+		Updates(models.Urls{
+			Removed: true,
+		})
 
 	return res.Error
 }

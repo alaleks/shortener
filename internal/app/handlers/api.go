@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 
-	wpool "github.com/alaleks/shortener/internal/app/pool"
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/alaleks/shortener/internal/app/storage"
 	"github.com/gorilla/mux"
@@ -218,23 +217,7 @@ func (h *Handlers) ShortenDeletePool(writer http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	job := DelData{
-		UserID:    userID,
-		ShortURLS: checkShortUID(shortUIDForDel...)}
-
-	h.Multiplex.AddQueue(wpool.Job{Data: job,
-		Action: func(data any) error {
-			dataForDel, ok := data.(DelData)
-
-			if !ok {
-				return storage.ErrInvalidData
-			}
-
-			err := h.Storage.Store.DelUrls(dataForDel.UserID,
-				dataForDel.ShortURLS...)
-
-			return err
-		}})
+	h.Storage.Pool.Add(func() { h.Storage.Store.DelUrls(userID, checkShortUID(shortUIDForDel...)...) })
 
 	writer.WriteHeader(http.StatusAccepted)
 }

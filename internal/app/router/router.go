@@ -9,7 +9,6 @@ import (
 
 func Create(handler *handlers.Handlers) http.Handler {
 	mux := mux.NewRouter()
-	go handler.Multiplex.Run()
 	mux.HandleFunc("/", handler.ShortenURL).Methods(http.MethodPost)
 	mux.HandleFunc("/ping", handler.Ping).Methods(http.MethodGet)
 	mux.HandleFunc("/{uid}", handler.ParseShortURL).Methods(http.MethodGet)
