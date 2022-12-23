@@ -11,7 +11,6 @@ import (
 
 	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/handlers"
-	"github.com/alaleks/shortener/internal/app/logger"
 
 	"github.com/alaleks/shortener/internal/app/router"
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
@@ -55,12 +54,14 @@ func New(sizeUID int) *AppServer {
 		ConnContext:       nil,
 	}
 
-	// init logger
-	logger, err := logger.NewLogger()
+	/*
+		// init logger
+		logger, err := logger.NewLogger()
 
-	if err == nil {
-		server.ErrorLog = log.New(logger, "", 0)
-	}
+		if err == nil {
+			server.ErrorLog = log.New(logger, "", 0)
+		}
+	*/
 
 	return &AppServer{
 		server:   server,
