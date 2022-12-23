@@ -14,7 +14,14 @@
 # Binaries
 cmd/shortener/main
 cmd/shortener/shortener
+
+# Log
 cmd/shortener/log.json
+
+# FileStorage
+cmd/shortener/storage
+
+# Vendor
 vendor/
 
 
