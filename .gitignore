@@ -14,8 +14,7 @@
 # Binaries
 cmd/shortener/main
 cmd/shortener/shortener
-cmd/applogs
-cmd/applogs/*
+vendor/
 
 
 # IDEs directories
