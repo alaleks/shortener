@@ -305,7 +305,7 @@ func (d *DB) DelUrls(userID string, shortsUID ...string) error {
 	}
 
 	res := d.db.Model(models.Urls{}).
-		Where("short_uid IN ? AND uid = ?", shortsUID, uid).
+		Where("short_uid IN ?", shortsUID).
 		Updates(models.Urls{
 			Removed: true,
 		})
