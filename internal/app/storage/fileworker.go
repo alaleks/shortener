@@ -67,7 +67,7 @@ func (ds *DefaultStorage) Init() error {
 		return fmt.Errorf("failed decode data: %w", err)
 	}
 
-	return err
+	return nil
 }
 
 func (ds *DefaultStorage) Ping() error {

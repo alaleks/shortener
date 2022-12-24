@@ -8,12 +8,15 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const permFile = 0o644
+
 type AppLogger struct {
 	LZ *zap.SugaredLogger
 }
 
 func (a *AppLogger) Write(b []byte) (n int, err error) {
 	a.LZ.Errorw(string(b))
+
 	return len(b), nil
 }
 
@@ -23,7 +26,7 @@ func NewLogger() *AppLogger {
 	config.StacktraceKey = ""
 	fileEncoder := zapcore.NewJSONEncoder(config)
 	logFile, err := os.OpenFile("log.json",
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, permFile)
 	// если ошибка пишем в консоль
 	if err != nil {
 		config := zap.NewProductionConfig()

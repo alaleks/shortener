@@ -157,6 +157,7 @@ func (ds *DefaultStorage) DelUrls(userID string, shortsUID ...string) error {
 
 	if !ok {
 		ds.mu.RUnlock()
+
 		return ErrInvalidData
 	}
 

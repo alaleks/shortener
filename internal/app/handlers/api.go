@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -227,8 +228,9 @@ func (h *Handlers) ShortenDeletePool(writer http.ResponseWriter, req *http.Reque
 			return storage.ErrInvalidData
 		}
 
-		return h.Storage.Store.DelUrls(dataRemoved.userID,
-			checkShortUID(dataRemoved.shortUIDForDel...)...)
+		return fmt.Errorf("deletion error: %w",
+			h.Storage.Store.DelUrls(dataRemoved.userID,
+				checkShortUID(dataRemoved.shortUIDForDel...)...))
 	})
 
 	writer.WriteHeader(http.StatusAccepted)

@@ -28,8 +28,7 @@ func (p *Pool) Run() {
 	p.Multiplex(workers...)
 
 	for task := range p.out {
-		err := task.action(task.data)
-		task.err = err
+		task.err = task.action(task.data)
 	}
 }
 

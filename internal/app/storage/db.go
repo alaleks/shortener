@@ -79,7 +79,7 @@ func (d *DB) Close() error {
 		return fmt.Errorf("db connection closed error: %w", err)
 	}
 
-	return err
+	return nil
 }
 
 func (d *DB) Ping() error {
@@ -98,7 +98,7 @@ func (d *DB) Ping() error {
 		return fmt.Errorf("ping db error: %w", err)
 	}
 
-	return err
+	return nil
 }
 
 func PingDB(sqlDB *sql.DB) error {
@@ -107,7 +107,7 @@ func PingDB(sqlDB *sql.DB) error {
 		return fmt.Errorf("ping db error: %w", err)
 	}
 
-	return err
+	return nil
 }
 
 func (d *DB) Add(longURL, userID string) (string, error) {
