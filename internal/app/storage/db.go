@@ -298,14 +298,14 @@ func (d *DB) DelUrls(userID string, shortsUID ...string) error {
 	if len(shortsUID) == 0 || userID == "" {
 		return ErrInvalidData
 	}
-/*
+	
 	uid, err := strconv.Atoi(userID)
 	if err != nil {
 		return ErrUserIDNotValid
-	}*/
+	}
 
 	res := d.db.Model(models.Urls{}).
-		Where("short_uid IN ?", shortsUID).
+		Where("short_uid IN ? AND uid = ?", shortsUID, uid).
 		Updates(models.Urls{
 			Removed: true,
 		})
