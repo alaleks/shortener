@@ -89,7 +89,7 @@ func catchSignal(appServer *AppServer) {
 	for {
 		select {
 		case <-termSignals:
-			appServer.handlers.Storage.Pool.Shutdown()
+			appServer.handlers.Storage.Pool.Stop()
 
 			if err := appServer.handlers.Storage.Store.Close(); err != nil {
 				log.Fatal(err)

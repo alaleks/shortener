@@ -202,23 +202,33 @@ func (h *Handlers) ShortenDelete(writer http.ResponseWriter, req *http.Request) 
 }
 
 func (h *Handlers) ShortenDeletePool(writer http.ResponseWriter, req *http.Request) {
-	var (
+	var data struct {
 		userID         string
 		shortUIDForDel []string
-	)
-
-	if req.URL.User != nil {
-		userID = req.URL.User.Username()
 	}
 
-	if err := json.NewDecoder(req.Body).Decode(&shortUIDForDel); err != nil {
+	if req.URL.User != nil {
+		data.userID = req.URL.User.Username()
+	}
+
+	if err := json.NewDecoder(req.Body).Decode(&data.shortUIDForDel); err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	h.Storage.Pool.Add(func() {
-		h.Storage.Store.DelUrls(userID, checkShortUID(shortUIDForDel...)...)
+	h.Storage.Pool.AddTask(data, func(data any) error {
+		dataRemoved, ok := data.(struct {
+			userID         string
+			shortUIDForDel []string
+		})
+
+		if !ok {
+			return storage.ErrInvalidData
+		}
+
+		return h.Storage.Store.DelUrls(dataRemoved.userID,
+			checkShortUID(dataRemoved.shortUIDForDel...)...)
 	})
 
 	writer.WriteHeader(http.StatusAccepted)

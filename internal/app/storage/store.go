@@ -2,17 +2,16 @@ package storage
 
 import (
 	"errors"
-	"runtime"
 
 	"github.com/alaleks/shortener/internal/app/config"
-	"github.com/shmel1k/gop"
+	"github.com/alaleks/shortener/internal/app/storage/pool"
 )
 
 var ErrShortURLRemoved = errors.New("short URL has been removed")
 
 type Store struct {
 	Store Storage
-	Pool  gop.Pool
+	Pool  *pool.Pool
 }
 
 type Storage interface {
@@ -53,10 +52,8 @@ type Statistics struct {
 }
 
 func InitStore(conf config.Configurator) *Store {
-	pool := gop.NewPool(gop.Config{
-		MaxWorkers:         runtime.NumCPU(),
-		UnstoppableWorkers: runtime.NumCPU(),
-	})
+	pool := pool.Init()
+	go pool.Run()
 
 	if len([]rune(conf.GetDSN())) > 1 {
 		storeDB := &Store{
