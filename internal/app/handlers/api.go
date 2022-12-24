@@ -217,7 +217,9 @@ func (h *Handlers) ShortenDeletePool(writer http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	h.Storage.Pool.Add(func() { h.Storage.Store.DelUrls(userID, checkShortUID(shortUIDForDel...)...) })
+	h.Storage.Pool.Add(func() {
+		h.Storage.Store.DelUrls(userID, checkShortUID(shortUIDForDel...)...)
+	})
 
 	writer.WriteHeader(http.StatusAccepted)
 }

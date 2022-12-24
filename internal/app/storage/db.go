@@ -310,5 +310,12 @@ func (d *DB) DelUrls(userID string, shortsUID ...string) error {
 			Removed: true,
 		})
 
+	if res.RowsAffected == 0 {
+		fmt.Printf("Переданы данные uid: %d\n, shortUID: %#v", uid, shortsUID)
+		var short models.Urls
+		d.db.Where("short_uid IN ?", shortsUID).Find(&short)
+		fmt.Printf("В базе %#v\n", short)
+	}
+
 	return res.Error
 }
