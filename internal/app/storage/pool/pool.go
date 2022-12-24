@@ -3,6 +3,8 @@ package pool
 import (
 	"runtime"
 	"sync"
+
+	"github.com/alaleks/shortener/internal/app/logger"
 )
 
 type Pool struct {
@@ -10,6 +12,7 @@ type Pool struct {
 	out       chan Task
 	tasks     chan Task
 	wg        *sync.WaitGroup
+	logger    *logger.AppLogger
 	active    bool
 	numWorker int
 }
@@ -17,7 +20,6 @@ type Pool struct {
 type Task struct {
 	data   any
 	action func(data any) error
-	err    error
 }
 
 func (p *Pool) Run() {
@@ -28,7 +30,11 @@ func (p *Pool) Run() {
 	p.Multiplex(workers...)
 
 	for task := range p.out {
-		task.err = task.action(task.data)
+		err := task.action(task.data)
+
+		if err != nil {
+			p.logger.LZ.Error(err)
+		}
 	}
 }
 
@@ -37,6 +43,7 @@ func (p *Pool) Multiplex(workers ...chan Task) {
 		for t := range task {
 			p.out <- t
 		}
+
 		p.wg.Done()
 	}
 
@@ -81,10 +88,11 @@ func (p *Pool) AddTask(data any, f func(data any) error) {
 	}
 }
 
-func Init() *Pool {
+func Init(logger *logger.AppLogger) *Pool {
 	return &Pool{
 		numWorker: runtime.NumCPU(),
 		wg:        &sync.WaitGroup{},
+		logger:    logger,
 		tasks:     make(chan Task, runtime.NumCPU()),
 		out:       make(chan Task),
 		done:      make(chan struct{}),

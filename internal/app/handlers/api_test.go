@@ -12,6 +12,7 @@ import (
 
 	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/handlers"
+	"github.com/alaleks/shortener/internal/app/logger"
 	"github.com/alaleks/shortener/internal/app/router"
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
 	"github.com/alaleks/shortener/internal/app/serv/middleware/auth"
@@ -25,7 +26,8 @@ func TestShortenURLAPI(t *testing.T) {
 	t.Parallel()
 	// данные для теста
 	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
-	testHandler := handlers.New(appConf)
+	logger := logger.NewLogger()
+	testHandler := handlers.New(appConf, logger)
 
 	tests := []struct {
 		name    string
@@ -78,7 +80,8 @@ func TestGetStatAPI(t *testing.T) {
 
 	// данные для теста
 	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
-	testHandler := handlers.New(appConf)
+	logger := logger.NewLogger()
+	testHandler := handlers.New(appConf, logger)
 	// генерируем uid
 	longURL1 := "https://github.com/alaleks/shortener"
 	longURL2 := "https://yandex.ru/pogoda/krasnodar"
@@ -148,7 +151,8 @@ func TestSetEnv(t *testing.T) {
 
 	// настройки для теста
 	appConf := config.New(config.Options{Env: true, Flag: false}, 5)
-	testHandler := handlers.New(appConf)
+	logger := logger.NewLogger()
+	testHandler := handlers.New(appConf, logger)
 
 	// создаем запрос, рекордер, хэндлер, запускаем сервер
 	testRec := httptest.NewRecorder()
@@ -186,7 +190,7 @@ func TestSetEnv(t *testing.T) {
 	}
 
 	// сбрасываем карту и читаем файл
-	testHandler.Storage = storage.InitStore(appConf)
+	testHandler.Storage = storage.InitStore(appConf, logger)
 	_ = testHandler.Storage.Store.Close()
 
 	if _, err := testHandler.Storage.Store.GetURL(strings.Split(dataFromRes.Result, "/")[3]); err != nil {
@@ -209,7 +213,8 @@ func TestSetFlag(t *testing.T) {
 	}
 	appConf.DefineOptionsFlags(argsTest)
 
-	testHandler := handlers.New(appConf)
+	logger := logger.NewLogger()
+	testHandler := handlers.New(appConf, logger)
 
 	// создаем запрос, рекордер, хэндлер, запускаем сервер
 	testRec := httptest.NewRecorder()
@@ -247,7 +252,7 @@ func TestSetFlag(t *testing.T) {
 	}
 
 	// сбрасываеи карту и читаем файл
-	testHandler.Storage = storage.InitStore(appConf)
+	testHandler.Storage = storage.InitStore(appConf, logger)
 	_ = testHandler.Storage.Store.Close()
 
 	if _, err := testHandler.Storage.Store.GetURL(strings.Split(dataFromRes.Result, "/")[3]); err != nil {
@@ -262,7 +267,8 @@ func TestCompress(t *testing.T) {
 	t.Parallel()
 	// данные для теста
 	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
-	testHandler := handlers.New(appConf)
+	logger := logger.NewLogger()
+	testHandler := handlers.New(appConf, logger)
 
 	tests := []struct {
 		name            string
@@ -303,7 +309,8 @@ func TestGetUsersURL(t *testing.T) {
 	t.Parallel()
 	// данные для теста
 	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
-	testHandler := handlers.New(appConf)
+	logger := logger.NewLogger()
+	testHandler := handlers.New(appConf, logger)
 	auth := auth.TurnOn(testHandler.Storage, appConf.GetSecretKey())
 	tests := []struct {
 		name string

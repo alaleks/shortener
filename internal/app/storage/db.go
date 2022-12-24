@@ -102,8 +102,7 @@ func (d *DB) Ping() error {
 }
 
 func PingDB(sqlDB *sql.DB) error {
-	err := sqlDB.Ping()
-	if err != nil {
+	if err := sqlDB.Ping(); err != nil {
 		return fmt.Errorf("ping db error: %w", err)
 	}
 

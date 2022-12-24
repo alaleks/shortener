@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/alaleks/shortener/internal/app/config"
+	"github.com/alaleks/shortener/internal/app/logger"
 	"github.com/alaleks/shortener/internal/app/storage/pool"
 )
 
@@ -51,8 +52,8 @@ type Statistics struct {
 	Usage     uint   `json:"usage"`
 }
 
-func InitStore(conf config.Configurator) *Store {
-	pool := pool.Init()
+func InitStore(conf config.Configurator, logger *logger.AppLogger) *Store {
+	pool := pool.Init(logger)
 	go pool.Run()
 
 	if len([]rune(conf.GetDSN())) > 1 {

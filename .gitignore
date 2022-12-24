@@ -16,7 +16,7 @@ cmd/shortener/main
 cmd/shortener/shortener
 
 # Log
-cmd/shortener/log.json
+log.json
 
 # FileStorage
 cmd/shortener/storage

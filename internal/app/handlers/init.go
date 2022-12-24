@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/alaleks/shortener/internal/app/config"
+	"github.com/alaleks/shortener/internal/app/logger"
 	"github.com/alaleks/shortener/internal/app/storage"
 )
 
@@ -42,9 +43,9 @@ type OutShortenBatch struct {
 	Err      string `json:"error,omitempty"`
 }
 
-func New(conf config.Configurator) *Handlers {
+func New(conf config.Configurator, logger *logger.AppLogger) *Handlers {
 	handlers := Handlers{
-		Storage: storage.InitStore(conf),
+		Storage: storage.InitStore(conf, logger),
 	}
 
 	return &handlers

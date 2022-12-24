@@ -36,7 +36,8 @@ type AppServer struct {
 func New(sizeUID int) *AppServer {
 	var (
 		appConf    config.Configurator = config.New(config.Options{Env: true, Flag: true}, sizeUID)
-		appHandler                     = handlers.New(appConf)
+		logger                         = logger.NewLogger()
+		appHandler                     = handlers.New(appConf, logger)
 		auth                           = auth.TurnOn(appHandler.Storage, appConf.GetSecretKey())
 	)
 
@@ -48,6 +49,7 @@ func New(sizeUID int) *AppServer {
 		IdleTimeout:       defaultIdleTimeout,
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
 		Addr:              appConf.GetServAddr(),
+		ErrorLog:          log.New(logger, "", 0),
 		TLSConfig:         nil,
 		MaxHeaderBytes:    maxHeaderBytes,
 		TLSNextProto:      nil,
@@ -55,10 +57,6 @@ func New(sizeUID int) *AppServer {
 		BaseContext:       nil,
 		ConnContext:       nil,
 	}
-
-	// init logger
-	logger := logger.NewLogger()
-	server.ErrorLog = log.New(logger, "", 0)
 
 	return &AppServer{
 		server:   server,
