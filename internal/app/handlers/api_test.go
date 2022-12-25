@@ -100,9 +100,9 @@ func TestGetStatAPI(t *testing.T) {
 
 	tests := []struct {
 		name    string
+		uriStat string
 		code    int
 		stat    uint
-		uriStat string
 	}{
 		{name: "стат uid #1", code: 200, stat: 1, uriStat: hostStat + uid1 + "/statistics"},
 		{name: "стат uid #2", code: 200, stat: 0, uriStat: hostStat + uid2 + "/statistics"},
@@ -314,8 +314,8 @@ func TestGetUsersURL(t *testing.T) {
 	auth := auth.TurnOn(testHandler.Storage, appConf.GetSecretKey())
 	tests := []struct {
 		name string
-		code int
 		url  string
+		code int
 	}{
 		{
 			name: "проверка когда кука установлена и валидна", code: 200,

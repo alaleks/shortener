@@ -23,10 +23,10 @@ func TestShortenURL(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		code     int
 		url      string
 		endpoint string
 		body     string
+		code     int
 	}{
 		{name: "url с https", code: 201, url: "https://github.com/alaleks/shortener"},
 		{name: "url с http", code: 201, url: "http://github.com/alaleks/shortener"},
@@ -81,9 +81,9 @@ func TestParseShortURL(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		code     int
 		shortURL string
 		longURL  string
+		code     int
 	}{
 		{
 			name: "парсинг корректной короткой ссылки", code: 307,
