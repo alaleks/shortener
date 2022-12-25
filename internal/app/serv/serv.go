@@ -11,6 +11,8 @@ import (
 
 	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/handlers"
+	"github.com/alaleks/shortener/internal/app/logger"
+
 	"github.com/alaleks/shortener/internal/app/router"
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
 	"github.com/alaleks/shortener/internal/app/serv/middleware/auth"
@@ -18,7 +20,7 @@ import (
 )
 
 const (
-	defaultTimeout           = time.Second
+	defaultTimeout           = 2 * time.Second
 	defaultReadHeaderTimeout = 2 * time.Second
 	defaultIdleTimeout       = 15 * time.Second
 	maxHeaderBytes           = 4096
@@ -27,13 +29,15 @@ const (
 type AppServer struct {
 	server   *http.Server
 	handlers *handlers.Handlers
+	Logger   *logger.AppLogger
 	conf     config.Configurator
 }
 
 func New(sizeUID int) *AppServer {
 	var (
 		appConf    config.Configurator = config.New(config.Options{Env: true, Flag: true}, sizeUID)
-		appHandler                     = handlers.New(appConf)
+		logger                         = logger.NewLogger()
+		appHandler                     = handlers.New(appConf, logger)
 		auth                           = auth.TurnOn(appHandler.Storage, appConf.GetSecretKey())
 	)
 
@@ -45,16 +49,21 @@ func New(sizeUID int) *AppServer {
 		IdleTimeout:       defaultIdleTimeout,
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
 		Addr:              appConf.GetServAddr(),
+		ErrorLog:          log.New(logger, "", 0),
 		TLSConfig:         nil,
 		MaxHeaderBytes:    maxHeaderBytes,
 		TLSNextProto:      nil,
 		ConnState:         nil,
-		ErrorLog:          nil,
 		BaseContext:       nil,
 		ConnContext:       nil,
 	}
 
-	return &AppServer{server: server, handlers: appHandler, conf: appConf}
+	return &AppServer{
+		server:   server,
+		handlers: appHandler,
+		conf:     appConf,
+		Logger:   logger,
+	}
 }
 
 func Run(appServer *AppServer) error {
@@ -78,6 +87,8 @@ func catchSignal(appServer *AppServer) {
 	for {
 		select {
 		case <-termSignals:
+			appServer.handlers.Storage.Pool.Stop()
+
 			if err := appServer.handlers.Storage.Store.Close(); err != nil {
 				log.Fatal(err)
 			}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/alaleks/shortener/internal/app/config"
@@ -17,23 +18,28 @@ import (
 )
 
 const (
-	MaxIdleConns = 5
-	MaxOpenConns = 50
+	MaxIdleConns = 25
+	MaxOpenConns = 25
 	MaxLifetime  = time.Hour
 )
 
 var (
 	ErrAlreadyExists = errors.New("such an entry exists in the database")
 	ErrDBConnection  = errors.New("failed to check database connection")
+	ErrInvalidData   = errors.New("data invalid")
 )
 
 type DB struct {
 	db   *gorm.DB
 	conf config.Configurator
+	mu   sync.RWMutex
 }
 
 func NewDB(conf config.Configurator) *DB {
-	return &DB{conf: conf}
+	return &DB{
+		conf: conf,
+		mu:   sync.RWMutex{},
+	}
 }
 
 func (d *DB) Init() error {
@@ -73,7 +79,7 @@ func (d *DB) Close() error {
 		return fmt.Errorf("db connection closed error: %w", err)
 	}
 
-	return err
+	return nil
 }
 
 func (d *DB) Ping() error {
@@ -92,16 +98,15 @@ func (d *DB) Ping() error {
 		return fmt.Errorf("ping db error: %w", err)
 	}
 
-	return err
+	return nil
 }
 
 func PingDB(sqlDB *sql.DB) error {
-	err := sqlDB.Ping()
-	if err != nil {
+	if err := sqlDB.Ping(); err != nil {
 		return fmt.Errorf("ping db error: %w", err)
 	}
 
-	return err
+	return nil
 }
 
 func (d *DB) Add(longURL, userID string) (string, error) {
@@ -183,11 +188,13 @@ func (d *DB) Update(uid string) {
 
 	res := d.db.Where("short_uid = ?", uid).First(&url)
 
-	if res.Error != nil {
+	if res.Error != nil || res.RowsAffected == 0 {
 		return
 	}
 
+	d.mu.Lock()
 	url.Statistics++
+	d.mu.Unlock()
 
 	d.db.Save(&url)
 }
@@ -203,6 +210,10 @@ func (d *DB) GetURL(uid string) (string, error) {
 
 	if res.RowsAffected == 0 {
 		return url.LongURL, ErrUIDNotValid
+	}
+
+	if url.Removed {
+		return url.LongURL, ErrShortURLRemoved
 	}
 
 	return url.LongURL, nil
@@ -237,21 +248,10 @@ func (d *DB) Create() uint {
 	}
 
 	user := models.Users{CreatedAt: time.Now()}
-
 	d.db.Create(&user)
 
 	return user.UID
 }
-
-/*
-func getUser(db *gorm.DB, uid int) models.Users {
-	var user models.Users
-
-	db.Where("uid = ?", uid).First(&user)
-
-	return user
-}
-*/
 
 func getUrlsUser(db *gorm.DB, uid uint) []models.Urls {
 	var urls []models.Urls
@@ -287,4 +287,27 @@ func (d *DB) GetUrlsUser(userID string) ([]URLUser, error) {
 	}
 
 	return usersURL, nil
+}
+
+func (d *DB) DelUrls(userID string, shortsUID ...string) error {
+	if d.Ping() != nil {
+		return ErrDBConnection
+	}
+
+	if len(shortsUID) == 0 || userID == "" {
+		return ErrInvalidData
+	}
+
+	uid, err := strconv.Atoi(userID)
+	if err != nil {
+		return ErrUserIDNotValid
+	}
+
+	res := d.db.Model(models.Urls{}).
+		Where("short_uid IN ? AND uid = ?", shortsUID, uid).
+		Updates(models.Urls{
+			Removed: true,
+		})
+
+	return res.Error
 }

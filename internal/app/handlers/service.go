@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"strings"
+
 	"github.com/alaleks/shortener/internal/app/service"
 )
 
@@ -23,4 +25,20 @@ func (h *Handlers) ProcessingURLBatch(userID string, input []InShortenBatch) ([]
 	}
 
 	return out, nil
+}
+
+func checkShortUID(shortUID ...string) []string {
+	var correctShortUID []string
+
+	for _, v := range shortUID {
+		if !strings.Contains(v, "/") && v != "" {
+			correctShortUID = append(correctShortUID, v)
+		} else {
+			if sUID := v[strings.LastIndex(v, "/")+1:]; sUID != "" {
+				correctShortUID = append(correctShortUID, sUID)
+			}
+		}
+	}
+
+	return correctShortUID
 }

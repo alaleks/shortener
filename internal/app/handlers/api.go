@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -14,19 +15,13 @@ import (
 
 func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) {
 	var (
-		input  InputShorten
-		output OutputShorten
-		userID string
+		input      InputShorten
+		output     OutputShorten
+		userID     string
+		httpStatus = http.StatusCreated
 	)
 
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusBadRequest)
-
-		return
-	}
-
-	if err := json.Unmarshal(body, &input); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(&input); err != nil {
 		output.Err = err.Error()
 	}
 
@@ -41,18 +36,17 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 	writer.Header().Set("Content-Type", "application/json")
 
 	shortURL, err := h.Storage.Store.Add(input.URL, userID)
-
 	if err != nil {
 		if errors.Is(err, storage.ErrAlreadyExists) {
-			writer.WriteHeader(http.StatusConflict)
+			httpStatus = http.StatusConflict
 		} else {
 			writer.WriteHeader(http.StatusInternalServerError)
 
 			return
 		}
-	} else {
-		writer.WriteHeader(http.StatusCreated)
 	}
+
+	writer.WriteHeader(httpStatus)
 
 	if output.Err == "" {
 		output.Success = true
@@ -185,4 +179,59 @@ func (h *Handlers) ShortenURLBatch(writer http.ResponseWriter, req *http.Request
 
 		return
 	}
+}
+
+func (h *Handlers) ShortenDelete(writer http.ResponseWriter, req *http.Request) {
+	var (
+		userID         string
+		shortUIDForDel []string
+	)
+
+	if req.URL.User != nil {
+		userID = req.URL.User.Username()
+	}
+
+	if err := json.NewDecoder(req.Body).Decode(&shortUIDForDel); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	h.Storage.Store.DelUrls(userID, checkShortUID(shortUIDForDel...)...)
+
+	writer.WriteHeader(http.StatusAccepted)
+}
+
+func (h *Handlers) ShortenDeletePool(writer http.ResponseWriter, req *http.Request) {
+	var data struct {
+		userID         string
+		shortUIDForDel []string
+	}
+
+	if req.URL.User != nil {
+		data.userID = req.URL.User.Username()
+	}
+
+	if err := json.NewDecoder(req.Body).Decode(&data.shortUIDForDel); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	h.Storage.Pool.AddTask(data, func(data any) error {
+		dataRemoved, ok := data.(struct {
+			userID         string
+			shortUIDForDel []string
+		})
+
+		if !ok {
+			return storage.ErrInvalidData
+		}
+
+		return fmt.Errorf("deletion error: %w",
+			h.Storage.Store.DelUrls(dataRemoved.userID,
+				checkShortUID(dataRemoved.shortUIDForDel...)...))
+	})
+
+	writer.WriteHeader(http.StatusAccepted)
 }

@@ -19,6 +19,7 @@ type Urls struct {
 	LongURL       string `gorm:"unique;index"`
 	Statistics    uint
 	UID           uint
+	Removed       bool
 }
 
 func Migrate(sqlDB *gorm.DB) error {
