@@ -9,12 +9,12 @@ import (
 
 type Pool struct {
 	done      chan struct{}
+	logger    *logger.AppLogger
 	out       chan Task
 	tasks     chan Task
-	wg        *sync.WaitGroup
-	logger    *logger.AppLogger
-	active    bool
+	wg        sync.WaitGroup
 	numWorker int
+	active    bool
 }
 
 type Task struct {
@@ -91,7 +91,7 @@ func (p *Pool) AddTask(data any, f func(data any) error) {
 func Init(logger *logger.AppLogger) *Pool {
 	return &Pool{
 		numWorker: runtime.NumCPU(),
-		wg:        &sync.WaitGroup{},
+		wg:        sync.WaitGroup{},
 		logger:    logger,
 		tasks:     make(chan Task, runtime.NumCPU()),
 		out:       make(chan Task),
