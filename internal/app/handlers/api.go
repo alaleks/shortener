@@ -197,7 +197,11 @@ func (h *Handlers) ShortenDelete(writer http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	h.Storage.Store.DelUrls(userID, checkShortUID(shortUIDForDel...)...)
+	if err := h.Storage.Store.DelUrls(userID, checkShortUID(shortUIDForDel...)...); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
 
 	writer.WriteHeader(http.StatusAccepted)
 }

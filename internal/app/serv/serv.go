@@ -12,7 +12,6 @@ import (
 	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/handlers"
 	"github.com/alaleks/shortener/internal/app/logger"
-
 	"github.com/alaleks/shortener/internal/app/router"
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
 	"github.com/alaleks/shortener/internal/app/serv/middleware/auth"
@@ -39,11 +38,12 @@ func New(sizeUID int) *AppServer {
 		logger                         = logger.NewLogger()
 		appHandler                     = handlers.New(appConf, logger)
 		auth                           = auth.TurnOn(appHandler.Storage, appConf.GetSecretKey())
+		routers                        = router.Create(appHandler)
 	)
 
 	server := &http.Server{
 		Handler: middleware.New(compress.Compression, compress.Unpacking, auth.Authorization).
-			Configure(router.Create(appHandler)),
+			Configure(routers),
 		ReadTimeout:       defaultTimeout,
 		WriteTimeout:      defaultTimeout,
 		IdleTimeout:       defaultIdleTimeout,

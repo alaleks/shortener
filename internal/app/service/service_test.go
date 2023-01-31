@@ -64,3 +64,19 @@ func TestCreateShortId(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkIsURL(b *testing.B) {
+	uri := "https://ya.ru/"
+
+	b.Run("before optimize", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = service.IsURLOld(uri)
+		}
+	})
+
+	b.Run("after optimize", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = service.IsURL(uri)
+		}
+	})
+}

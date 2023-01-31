@@ -39,27 +39,26 @@ func (r readerCloserGzip) Close() error {
 
 func Compression(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
-		if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
+		if strings.Index(req.Header.Get("Accept-Encoding"), "gzip") < 0 ||
+			!CheckBeforeCompression(req.Header.Get("Content-Type")) {
 			handler.ServeHTTP(writer, req)
 
 			return
 		}
 
-		if !checkBeforeCompression(req.Header.Get("Content-Type")) {
-			handler.ServeHTTP(writer, req)
-
-			return
-		}
-
-		writer.Header().Set("Content-Encoding", "gzip")
 		gz := gzip.NewWriter(writer)
 		defer gz.Close()
-		gzw := writerGzip{Writer: gz, ResponseWriter: writer}
+		gzw := writerGzip{
+			Writer:         gz,
+			ResponseWriter: writer,
+		}
+		writer.Header().Set("Content-Encoding", "gzip")
+
 		handler.ServeHTTP(gzw, req)
 	})
 }
 
-func checkBeforeCompression(contentType string) bool {
+func CheckBeforeCompressionOld(contentType string) bool {
 	correctTypes := [...]string{
 		"text/css",
 		"text/csv",
@@ -83,6 +82,30 @@ func checkBeforeCompression(contentType string) bool {
 	return false
 }
 
+func CheckBeforeCompression(contentType string) bool {
+	correctTypes := [...]string{
+		"text/css",
+		"text/csv",
+		"text/html",
+		"application/json",
+		"text/javascript",
+		"image/svg+xml",
+		"font/ttf",
+		"text/plain",
+		"font/woff",
+		"font/woff2",
+		"text/xml",
+	}
+
+	for _, correctType := range correctTypes {
+		if contentType == correctType {
+			return true
+		}
+	}
+
+	return false
+}
+
 func Unpacking(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
 		switch req.Header.Get("Content-Encoding") {
@@ -95,18 +118,18 @@ func Unpacking(handler http.Handler) http.Handler {
 			}
 			req.Header.Del("Content-Length")
 			reader, err := gzip.NewReader(&buffer)
-
-			if reader != nil {
-				defer reader.Close()
-			}
-
 			if err != nil {
 				handler.ServeHTTP(writer, req)
 
 				return
 			}
 
-			req.Body = readerCloserGzip{Reader: reader, Closer: req.Body}
+			defer reader.Close()
+
+			req.Body = readerCloserGzip{
+				Reader: reader,
+				Closer: req.Body,
+			}
 
 			handler.ServeHTTP(writer, req)
 

@@ -11,8 +11,8 @@ var (
 )
 
 type URLUser struct {
-	ShortURL    string `json:"short_url"`
-	OriginalURL string `json:"original_url"`
+	ShortUID string `json:"short_url"`
+	LongURL  string `json:"original_url"`
 }
 
 func (ds *DefaultStorage) GetUrlsUser(userID string) ([]URLUser, error) {
@@ -34,7 +34,7 @@ func (ds *DefaultStorage) GetUrlsUser(userID string) ([]URLUser, error) {
 
 	for _, shortUID := range uidsShortURL {
 		if originalURL, err := ds.GetURL(shortUID); err == nil {
-			urls = append(urls, URLUser{ShortURL: ds.conf.GetBaseURL() + shortUID, OriginalURL: originalURL})
+			urls = append(urls, URLUser{ShortUID: ds.conf.GetBaseURL() + shortUID, LongURL: originalURL})
 		}
 	}
 

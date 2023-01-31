@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"net/http"
@@ -29,7 +30,7 @@ func TurnOn(store *storage.Store, secretKey []byte) Auth {
 	return Auth{store: store, secretKey: secretKey}
 }
 
-func (a *Auth) createSigning(uid uint) string {
+func (a *Auth) CreateSigningOld(uid uint) string {
 	mac := hmac.New(sha256.New, a.secretKey)
 	mac.Write([]byte(strconv.Itoa(int(uid))))
 	signature := mac.Sum(nil)
@@ -38,7 +39,19 @@ func (a *Auth) createSigning(uid uint) string {
 	return base64.URLEncoding.EncodeToString(signature)
 }
 
-func (a *Auth) readSigning(cookieVal string) (uint, error) {
+func (a *Auth) CreateSigning(uid uint) string {
+	b := make([]byte, 8)
+	binary.LittleEndian.PutUint64(b, uint64(uid))
+
+	mac := hmac.New(sha256.New, a.secretKey)
+	mac.Write(b)
+	signature := mac.Sum(nil)
+	signature = append(signature, b...)
+
+	return base64.URLEncoding.EncodeToString(signature)
+}
+
+func (a *Auth) ReadSigningOld(cookieVal string) (uint, error) {
 	signedVal, err := base64.URLEncoding.DecodeString(cookieVal)
 	if err != nil {
 		return 0, fmt.Errorf("cookie decoding error: %w", err)
@@ -61,6 +74,24 @@ func (a *Auth) readSigning(cookieVal string) (uint, error) {
 	return uint(uid), nil
 }
 
+func (a *Auth) ReadSigning(cookieVal string) (uint, error) {
+	signedVal, err := base64.URLEncoding.DecodeString(cookieVal)
+	if err != nil {
+		return 0, fmt.Errorf("cookie decoding error: %w", err)
+	}
+
+	signature := signedVal[:sha256.Size]
+	mac := hmac.New(sha256.New, a.secretKey)
+	mac.Write(signedVal[sha256.Size:])
+	expectedSignature := mac.Sum(nil)
+
+	if !hmac.Equal(signature, expectedSignature) {
+		return 0, ErrInvalidSign
+	}
+
+	return uint(int64(binary.LittleEndian.Uint64(signedVal[sha256.Size:]))), nil
+}
+
 func (a *Auth) Authorization(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
 		authCookie, err := getCookie(req, cookieName)
@@ -68,19 +99,17 @@ func (a *Auth) Authorization(handler http.Handler) http.Handler {
 
 		if authCookie == nil || err != nil {
 			userID = a.store.Store.Create()
-
-			setCookie(writer, req, a.createSigning(userID))
+			http.SetCookie(writer, setCookie(a.CreateSigning(userID), req.TLS != nil))
 			req.URL.User = url.User(strconv.Itoa(int(userID)))
 			handler.ServeHTTP(writer, req)
 
 			return
 		}
 
-		userID, err = a.readSigning(authCookie.Value)
+		userID, err = a.ReadSigning(authCookie.Value)
 		if err != nil {
 			userID = a.store.Store.Create()
-
-			setCookie(writer, req, a.createSigning(userID))
+			http.SetCookie(writer, setCookie(a.CreateSigning(userID), req.TLS != nil))
 			req.URL.User = url.User(strconv.Itoa(int(userID)))
 			handler.ServeHTTP(writer, req)
 
@@ -92,7 +121,7 @@ func (a *Auth) Authorization(handler http.Handler) http.Handler {
 	})
 }
 
-func setCookie(writer http.ResponseWriter, req *http.Request, sign string) {
+func setCookie(sign string, sslCheck bool) *http.Cookie {
 	cookie := http.Cookie{
 		Name:     "Authorization",
 		Value:    sign,
@@ -103,18 +132,18 @@ func setCookie(writer http.ResponseWriter, req *http.Request, sign string) {
 		SameSite: http.SameSiteLaxMode,
 	}
 
-	if req.TLS == nil {
+	if !sslCheck {
 		cookie.Secure = false
 	}
 
-	http.SetCookie(writer, &cookie)
+	return &cookie
 }
 
 func getCookie(req *http.Request, name string) (*http.Cookie, error) {
 	cookie, err := req.Cookie(name)
 	if err != nil {
-		err = fmt.Errorf("error getting authorization cookie: %w", err)
+		return cookie, fmt.Errorf("error getting authorization cookie: %w", err)
 	}
 
-	return cookie, err
+	return cookie, nil
 }

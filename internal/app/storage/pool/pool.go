@@ -31,7 +31,6 @@ func (p *Pool) Run() {
 
 	for task := range p.out {
 		err := task.action(task.data)
-
 		if err != nil {
 			p.logger.LZ.Error(err)
 		}
@@ -79,6 +78,10 @@ func (p *Pool) Stop() {
 		close(p.done)
 		p.active = false
 	}
+}
+
+func (p *Pool) SetNumWorker(num int) {
+	p.numWorker = num
 }
 
 func (p *Pool) AddTask(data any, f func(data any) error) {

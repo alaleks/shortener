@@ -61,6 +61,9 @@ func InitStore(conf config.Configurator, logger *logger.AppLogger) *Store {
 			Store: NewDB(conf),
 			Pool:  pool,
 		}
+
+		pool.SetNumWorker(10)
+
 		// инициализируем базу данных
 		err := storeDB.Store.Init()
 
@@ -75,6 +78,8 @@ func InitStore(conf config.Configurator, logger *logger.AppLogger) *Store {
 		Store: NewDefault(conf),
 		Pool:  pool,
 	}
+
+	pool.SetNumWorker(10)
 
 	// инициализируем файловое хранилище
 	_ = storeDefault.Store.Init()
