@@ -8,13 +8,13 @@ import (
 )
 
 type Users struct {
-	CreatedAt time.Time
-	UID       uint `gorm:"primaryKey;autoIncrement;unique"`
+	CreatedAt time.Time `gorm:"default:CURRENT_TIMESTAMP()"`
+	UID       uint      `gorm:"primaryKey;autoIncrement;unique"`
 }
 
 type Urls struct {
-	CreatedAt     time.Time
-	ShortUID      string `gorm:"primaryKey"`
+	CreatedAt     time.Time `gorm:"default:CURRENT_TIMESTAMP()"`
+	ShortUID      string    `gorm:"primaryKey"`
 	CorrelationID string
 	LongURL       string `gorm:"unique;index"`
 	Statistics    uint

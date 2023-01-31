@@ -19,8 +19,8 @@ import (
 
 const (
 	MaxIdleConns = 100
-	MaxOpenConns = 100
-	MaxLifetime  = time.Hour
+	MaxOpenConns = 200
+	MaxLifetime  = (15 * time.Minute)
 )
 
 var (
@@ -148,28 +148,20 @@ func writeURL(db *gorm.DB, uri models.Urls) int {
 }
 
 func (d *DB) Add(longURL, userID string) (string, error) {
-	var (
-		uri      models.Urls
-		shortUID = service.GenUID(d.conf.GetSizeUID())
-	)
-
-	userIDtoInt, _ := strconv.Atoi(userID)
-
-	res := d.db.Where(models.Urls{LongURL: longURL}).
-		Attrs(models.Urls{
-			ShortUID:  shortUID,
-			CreatedAt: time.Now(),
-			UID:       uint(userIDtoInt),
-		}).
-		FirstOrCreate(&uri)
-
-	if res.Error != nil {
-		return "", res.Error
-	}
-
-	if res.RowsAffected == 0 {
+	var uri models.Urls
+	res := d.db.Where("long_url = ?", longURL).FirstOrInit(&uri)
+	if res.RowsAffected > 0 {
 		return d.conf.GetBaseURL() + uri.ShortUID, ErrAlreadyExists
 	}
+
+	uri.LongURL = longURL
+	uri.ShortUID = service.GenUID(d.conf.GetSizeUID())
+	userIDtoInt, err := strconv.Atoi(userID)
+	if err == nil {
+		uri.UID = uint(userIDtoInt)
+	}
+
+	d.db.Create(&uri)
 
 	return d.conf.GetBaseURL() + uri.ShortUID, nil
 }
@@ -186,9 +178,8 @@ func (d *DB) AddBatch(longURL, userID, corID string) string {
 	userIDtoInt, err := strconv.Atoi(userID)
 
 	uri := models.Urls{
-		ShortUID:  service.GenUID(d.conf.GetSizeUID()),
-		LongURL:   longURL,
-		CreatedAt: time.Now(),
+		ShortUID: service.GenUID(d.conf.GetSizeUID()),
+		LongURL:  longURL,
 	}
 
 	if err == nil {
@@ -268,7 +259,7 @@ func (d *DB) Stat(uid string) (Statistics, error) {
 }
 
 func (d *DB) Create() uint {
-	user := models.Users{CreatedAt: time.Now()}
+	user := models.Users{}
 	d.db.Create(&user)
 
 	return user.UID

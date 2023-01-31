@@ -5,6 +5,7 @@ go 1.19
 require github.com/gorilla/mux v1.8.0
 
 require (
+	github.com/goccy/go-json v0.10.0
 	github.com/lib/pq v1.10.7
 	go.uber.org/zap v1.24.0
 	gorm.io/driver/postgres v1.4.5

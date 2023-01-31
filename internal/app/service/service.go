@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+const (
+	prefixHTTPS = "https://"
+	prefixHTTP  = "http://"
+	prefixWWW   = "www."
+)
+
 var ErrInvalidURL = errors.New("invalid url")
 
 // generate uid string (letters English Alphabet).
@@ -50,11 +56,11 @@ func IsURLOld(uri string) error {
 
 func IsURL(uri string) error {
 	switch {
-	case strings.HasPrefix(uri, "https://") && len(strings.TrimPrefix(uri, "https://")) > 0:
+	case strings.HasPrefix(uri, prefixHTTPS) && uri != prefixHTTPS:
 		return nil
-	case strings.HasPrefix(uri, "http://") && len(strings.TrimPrefix(uri, "http://")) > 0:
+	case strings.HasPrefix(uri, prefixHTTP) && uri != prefixHTTP:
 		return nil
-	case strings.HasPrefix(uri, "www.") && len(strings.TrimPrefix(uri, "www.")) > 0:
+	case strings.HasPrefix(uri, prefixWWW) && uri != prefixWWW:
 		return nil
 	default:
 		return fmt.Errorf("%w: %s", ErrInvalidURL, uri)

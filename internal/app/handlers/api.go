@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/alaleks/shortener/internal/app/storage"
+	"github.com/goccy/go-json"
 	"github.com/gorilla/mux"
 )
 
@@ -53,14 +53,15 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 		output.Result = shortURL
 	}
 
-	res, err := json.Marshal(output)
-	if err != nil {
+	var buf bytes.Buffer
+
+	if err := json.NewEncoder(&buf).Encode(output); err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	if _, err := writer.Write(res); err != nil {
+	if _, err := writer.Write(buf.Bytes()); err != nil {
 		http.Error(writer, ErrInternalError.Error(), http.StatusBadRequest)
 
 		return

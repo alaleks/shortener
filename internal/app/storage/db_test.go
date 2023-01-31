@@ -86,7 +86,6 @@ func BenchmarkAdd(b *testing.B) {
 }
 
 func BenchmarkGetUrlsUser(b *testing.B) {
-	b.StopTimer()
 	b.Setenv("DATABASE_DSN", "host=localhost user=shortener password=3BJ2zWGPbQps dbname=shortener port=5432")
 	conf := config.New(config.Options{Env: true}, 5)
 	db := storage.NewDB(conf)
@@ -96,7 +95,6 @@ func BenchmarkGetUrlsUser(b *testing.B) {
 	}
 
 	var uids []string
-	b.StartTimer()
 
 	for i := 0; i < 1000; i++ {
 		shortURL, err := db.Add("http://example.com/"+strconv.Itoa(i),

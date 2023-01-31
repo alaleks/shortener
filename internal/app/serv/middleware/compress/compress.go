@@ -29,31 +29,31 @@ type readerCloserGzip struct {
 }
 
 func (r readerCloserGzip) Close() error {
-	err := r.Closer.Close()
-	if err != nil {
-		err = fmt.Errorf("failed readerCloserGzip: %w", err)
+	if err := r.Closer.Close(); err != nil {
+		return fmt.Errorf("failed readerCloserGzip: %w", err)
 	}
 
-	return err
+	return nil
 }
 
 func Compression(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
-		if strings.Index(req.Header.Get("Accept-Encoding"), "gzip") < 0 ||
-			!CheckBeforeCompression(req.Header.Get("Content-Type")) {
+		if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
 			handler.ServeHTTP(writer, req)
 
 			return
 		}
 
+		if !CheckBeforeCompression(req.Header.Get("Content-Type")) {
+			handler.ServeHTTP(writer, req)
+
+			return
+		}
+
+		writer.Header().Set("Content-Encoding", "gzip")
 		gz := gzip.NewWriter(writer)
 		defer gz.Close()
-		gzw := writerGzip{
-			Writer:         gz,
-			ResponseWriter: writer,
-		}
-		writer.Header().Set("Content-Encoding", "gzip")
-
+		gzw := writerGzip{Writer: gz, ResponseWriter: writer}
 		handler.ServeHTTP(gzw, req)
 	})
 }
@@ -124,7 +124,9 @@ func Unpacking(handler http.Handler) http.Handler {
 				return
 			}
 
-			defer reader.Close()
+			if reader != nil {
+				defer reader.Close()
+			}
 
 			req.Body = readerCloserGzip{
 				Reader: reader,
