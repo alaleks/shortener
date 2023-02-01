@@ -10,13 +10,13 @@ import (
 
 // Users view model of users
 type Users struct {
-	CreatedAt time.Time `gorm:"default:CURRENT_TIMESTAMP()"`
+	CreatedAt time.Time `gorm:"default:NOW()"`
 	UID       uint      `gorm:"primaryKey;autoIncrement;unique"`
 }
 
 // Urls representation model for short URL.
 type Urls struct {
-	CreatedAt     time.Time `gorm:"default:CURRENT_TIMESTAMP()"`
+	CreatedAt     time.Time `gorm:"default:NOW()"`
 	ShortUID      string    `gorm:"primaryKey"`
 	CorrelationID string
 	LongURL       string `gorm:"unique;index"`
