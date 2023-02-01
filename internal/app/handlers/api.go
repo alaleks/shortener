@@ -250,7 +250,6 @@ func (h *Handlers) ShortenDeletePool(writer http.ResponseWriter, req *http.Reque
 
 		err := h.Storage.Store.DelUrls(dataRemoved.userID,
 			checkShortUID(dataRemoved.shortUIDForDel...)...)
-
 		if err != nil {
 			return fmt.Errorf("deletion error: %w", err)
 		}

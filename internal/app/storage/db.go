@@ -264,7 +264,8 @@ func getUrlsUser(db *gorm.DB, uid uint) []models.Urls {
 func (d *DB) GetUrlsUser(userID string) ([]struct {
 	ShortUID string `json:"short_url"`
 	LongURL  string `json:"original_url"`
-}, error) {
+}, error,
+) {
 	uid, err := strconv.Atoi(userID)
 	if err != nil {
 		return []struct {
@@ -292,7 +293,8 @@ func (d *DB) GetUrlsUser(userID string) ([]struct {
 func (d *DB) GetUrlsUserOld(userID string) ([]struct {
 	ShortUID string `json:"short_url"`
 	LongURL  string `json:"original_url"`
-}, error) {
+}, error,
+) {
 	uid, err := strconv.Atoi(userID)
 	if err != nil {
 		return []struct {

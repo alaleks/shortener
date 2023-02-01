@@ -8,7 +8,8 @@ import (
 func (ds *DefaultStorage) GetUrlsUser(userID string) ([]struct {
 	ShortUID string `json:"short_url"`
 	LongURL  string `json:"original_url"`
-}, error) {
+}, error,
+) {
 	uid, err := strconv.Atoi(userID)
 	if err != nil {
 		return nil, ErrUserIDNotValid
