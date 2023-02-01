@@ -248,9 +248,14 @@ func (h *Handlers) ShortenDeletePool(writer http.ResponseWriter, req *http.Reque
 			return storage.ErrInvalidData
 		}
 
-		return fmt.Errorf("deletion error: %w",
-			h.Storage.Store.DelUrls(dataRemoved.userID,
-				checkShortUID(dataRemoved.shortUIDForDel...)...))
+		err := h.Storage.Store.DelUrls(dataRemoved.userID,
+			checkShortUID(dataRemoved.shortUIDForDel...)...)
+
+		if err != nil {
+			return fmt.Errorf("deletion error: %w", err)
+		}
+
+		return nil
 	})
 
 	writer.WriteHeader(http.StatusAccepted)

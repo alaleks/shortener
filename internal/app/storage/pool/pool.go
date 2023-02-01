@@ -36,7 +36,7 @@ func (p *Pool) Run() {
 	for task := range p.out {
 		err := task.action(task.data)
 		if err != nil {
-			p.logger.LZ.Error(err)
+			p.logger.LZ.Error(err.Error())
 		}
 	}
 }
