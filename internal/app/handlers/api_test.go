@@ -25,7 +25,7 @@ const data = `{"url":"https://github.com/alaleks/shortener"}`
 func TestShortenURLAPI(t *testing.T) {
 	t.Parallel()
 	// данные для теста
-	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
+	appConf := config.New(config.Options{Env: false, Flag: false})
 	logger := logger.NewLogger()
 	testHandler := handlers.New(appConf, logger)
 
@@ -79,7 +79,7 @@ func TestGetStatAPI(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
+	appConf := config.New(config.Options{Env: false, Flag: false})
 	logger := logger.NewLogger()
 	testHandler := handlers.New(appConf, logger)
 	// генерируем uid
@@ -150,7 +150,7 @@ func TestSetEnv(t *testing.T) {
 	t.Setenv("DATABASE_DSN", "")
 
 	// настройки для теста
-	appConf := config.New(config.Options{Env: true, Flag: false}, 5)
+	appConf := config.New(config.Options{Env: true, Flag: false})
 	logger := logger.NewLogger()
 	testHandler := handlers.New(appConf, logger)
 
@@ -206,7 +206,7 @@ func TestSetFlag(t *testing.T) {
 
 	// настройки для теста
 	options := config.Options{Env: true, Flag: true}
-	appConf := config.New(options, 5)
+	appConf := config.New(options)
 	argsTest := []string{
 		"TestFlags", "-a", "localhost:9093", "-b",
 		"http://localhost:9093/", "-f", "./storage",
@@ -266,7 +266,7 @@ func TestSetFlag(t *testing.T) {
 func TestCompress(t *testing.T) {
 	t.Parallel()
 	// данные для теста
-	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
+	appConf := config.New(config.Options{Env: false, Flag: false})
 	logger := logger.NewLogger()
 	testHandler := handlers.New(appConf, logger)
 
@@ -308,7 +308,7 @@ func TestCompress(t *testing.T) {
 func TestGetUsersURL(t *testing.T) {
 	t.Parallel()
 	// данные для теста
-	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
+	appConf := config.New(config.Options{Env: false, Flag: false})
 	logger := logger.NewLogger()
 	testHandler := handlers.New(appConf, logger)
 	auth := auth.TurnOn(testHandler.Storage, appConf.GetSecretKey())

@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"errors"
 	"strconv"
 	"strings"
 	"sync"
@@ -10,8 +9,6 @@ import (
 	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/service"
 )
-
-var ErrUIDNotValid = errors.New("short URL does not exist")
 
 type DefaultStorage struct {
 	conf  config.Configurator

@@ -16,7 +16,7 @@ func InitDB() {
 func BenchmarkUpdate(b *testing.B) {
 	b.StopTimer()
 	b.Setenv("DATABASE_DSN", "host=localhost user=shortener password=3BJ2zWGPbQps dbname=shortener port=5432")
-	conf := config.New(config.Options{Env: true}, 5)
+	conf := config.New(config.Options{Env: true})
 	db := storage.NewDB(conf)
 	err := db.Init()
 	if err != nil {
@@ -44,7 +44,7 @@ func BenchmarkUpdate(b *testing.B) {
 func BenchmarkAdd(b *testing.B) {
 	b.StopTimer()
 	b.Setenv("DATABASE_DSN", "host=localhost user=shortener password=3BJ2zWGPbQps dbname=shortener port=5432")
-	conf := config.New(config.Options{Env: true}, 5)
+	conf := config.New(config.Options{Env: true})
 	db := storage.NewDB(conf)
 	err := db.Init()
 	if err != nil {
@@ -87,7 +87,7 @@ func BenchmarkAdd(b *testing.B) {
 
 func BenchmarkGetUrlsUser(b *testing.B) {
 	b.Setenv("DATABASE_DSN", "host=localhost user=shortener password=3BJ2zWGPbQps dbname=shortener port=5432")
-	conf := config.New(config.Options{Env: true}, 5)
+	conf := config.New(config.Options{Env: true})
 	db := storage.NewDB(conf)
 	err := db.Init()
 	if err != nil {

@@ -17,7 +17,7 @@ func TestShortenURL(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
+	appConf := config.New(config.Options{Env: false, Flag: false})
 	logger := logger.NewLogger()
 	testHandler := handlers.New(appConf, logger)
 
@@ -72,7 +72,7 @@ func TestParseShortURL(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
+	appConf := config.New(config.Options{Env: false, Flag: false})
 	logger := logger.NewLogger()
 	testHandler := handlers.New(appConf, logger)
 	longURL := "https://github.com/alaleks/shortener"

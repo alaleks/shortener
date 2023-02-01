@@ -13,6 +13,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// ShortenURLAPI implements URL shortening.
+// POST /api/shorten, JSON: {"url":"http://github.com/alaleks/shortener"}.
 func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) {
 	var (
 		input      InputShorten
@@ -68,6 +70,8 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 	}
 }
 
+// GetStatAPI implements getting statistics on the use of a short URL.
+// Example: GET /api/{uid}/statistics
 func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 	var (
 		buffer bytes.Buffer
@@ -102,6 +106,8 @@ func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// GetUsersURL returns all user shortened URLs.
+// GET /api/user/urls
 func (h *Handlers) GetUsersURL(writer http.ResponseWriter, req *http.Request) {
 	var buffer bytes.Buffer
 
@@ -133,6 +139,9 @@ func (h *Handlers) GetUsersURL(writer http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// ShortenURLBatch implements url batch shortening.
+// POST /api/shorten/batch
+// JSON: [{"original_url":"http://github.com/alaleks/shortener", "correlation_id":1}]
 func (h *Handlers) ShortenURLBatch(writer http.ResponseWriter, req *http.Request) {
 	var (
 		input  []InShortenBatch
@@ -158,7 +167,7 @@ func (h *Handlers) ShortenURLBatch(writer http.ResponseWriter, req *http.Request
 		return
 	}
 
-	output, err := h.ProcessingURLBatch(userID, input)
+	output, err := h.processingURLBatch(userID, input)
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
@@ -182,6 +191,9 @@ func (h *Handlers) ShortenURLBatch(writer http.ResponseWriter, req *http.Request
 	}
 }
 
+// ShortenDelete (without Worker Pool) implements
+// the ability to delete user shortened URLs.
+// DELETE /api/user/urls
 func (h *Handlers) ShortenDelete(writer http.ResponseWriter, req *http.Request) {
 	var (
 		userID         string
@@ -207,6 +219,9 @@ func (h *Handlers) ShortenDelete(writer http.ResponseWriter, req *http.Request) 
 	writer.WriteHeader(http.StatusAccepted)
 }
 
+// ShortenDelete (with Worker Pool) implements
+// the ability to delete user shortened URLs.
+// DELETE /api/user/urls
 func (h *Handlers) ShortenDeletePool(writer http.ResponseWriter, req *http.Request) {
 	var data struct {
 		userID         string

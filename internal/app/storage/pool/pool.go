@@ -1,3 +1,4 @@
+// Package pool implements a pool of workers.
 package pool
 
 import (
@@ -7,6 +8,7 @@ import (
 	"github.com/alaleks/shortener/internal/app/logger"
 )
 
+// Pool represents an instance of a worker pool.
 type Pool struct {
 	done      chan struct{}
 	logger    *logger.AppLogger
@@ -17,17 +19,19 @@ type Pool struct {
 	active    bool
 }
 
+// Task represents an instance job for added in pool.
 type Task struct {
 	data   any
 	action func(data any) error
 }
 
+// Run - starts of worker pool.
 func (p *Pool) Run() {
 	workers := []chan Task{}
 	for i := 0; i < runtime.NumCPU(); i++ {
-		workers = append(workers, p.Worker())
+		workers = append(workers, p.worker())
 	}
-	p.Multiplex(workers...)
+	p.multiplex(workers...)
 
 	for task := range p.out {
 		err := task.action(task.data)
@@ -37,7 +41,8 @@ func (p *Pool) Run() {
 	}
 }
 
-func (p *Pool) Multiplex(workers ...chan Task) {
+// Multiplexer implementation
+func (p *Pool) multiplex(workers ...chan Task) {
 	output := func(task <-chan Task) {
 		for t := range task {
 			p.out <- t
@@ -57,7 +62,7 @@ func (p *Pool) Multiplex(workers ...chan Task) {
 	}()
 }
 
-func (p *Pool) Worker() chan Task {
+func (p *Pool) worker() chan Task {
 	out := make(chan Task)
 
 	go func() {
@@ -73,6 +78,7 @@ func (p *Pool) Worker() chan Task {
 	return out
 }
 
+// Stop - stops the pool.
 func (p *Pool) Stop() {
 	if p.active {
 		close(p.done)
@@ -80,10 +86,13 @@ func (p *Pool) Stop() {
 	}
 }
 
+// SetNumWorker allows you to set the number of workers
+// using the formula n * runtime.NumCPU().
 func (p *Pool) SetNumWorker(num int) {
-	p.numWorker = num
+	p.numWorker = runtime.NumCPU() * num
 }
 
+// AddTask adds a task to the pool.
 func (p *Pool) AddTask(data any, f func(data any) error) {
 	p.tasks <- Task{
 		data:   data,
@@ -91,6 +100,7 @@ func (p *Pool) AddTask(data any, f func(data any) error) {
 	}
 }
 
+// Init initializes the pool instance.
 func Init(logger *logger.AppLogger) *Pool {
 	return &Pool{
 		numWorker: runtime.NumCPU(),

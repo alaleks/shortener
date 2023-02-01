@@ -1,3 +1,4 @@
+// The package logger implements logging capabilities in the application.
 package logger
 
 import (
@@ -10,16 +11,19 @@ import (
 
 const permFile = 0o644
 
+// AppLogger is a structure with reference to zap.Sugared Logger instance.
 type AppLogger struct {
 	LZ *zap.SugaredLogger
 }
 
+// Write method that implements the interface io.Writer.
 func (a *AppLogger) Write(b []byte) (n int, err error) {
 	a.LZ.Errorw(string(b))
 
 	return len(b), nil
 }
 
+// NewLogger initializing a new logger
 func NewLogger() *AppLogger {
 	config := zap.NewProductionEncoderConfig()
 	config.EncodeTime = zapcore.ISO8601TimeEncoder

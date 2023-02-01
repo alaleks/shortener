@@ -1,3 +1,4 @@
+// Package storage includes data storage implementations.
 package storage
 
 import (
@@ -42,7 +43,10 @@ type Consumer interface {
 
 type User interface {
 	Create() uint
-	GetUrlsUser(userID string) ([]URLUser, error)
+	GetUrlsUser(userID string) ([]struct {
+		ShortUID string `json:"short_url"`
+		LongURL  string `json:"original_url"`
+	}, error)
 }
 
 type Statistics struct {

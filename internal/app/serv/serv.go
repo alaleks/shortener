@@ -1,3 +1,4 @@
+// Package serv creates, starts and stops a web server.
 package serv
 
 import (
@@ -25,6 +26,7 @@ const (
 	maxHeaderBytes           = 4096
 )
 
+// AppServer represents an application server instance.
 type AppServer struct {
 	server   *http.Server
 	handlers *handlers.Handlers
@@ -32,9 +34,10 @@ type AppServer struct {
 	conf     config.Configurator
 }
 
-func New(sizeUID int) *AppServer {
+// New creates a new server.
+func New() *AppServer {
 	var (
-		appConf    config.Configurator = config.New(config.Options{Env: true, Flag: true}, sizeUID)
+		appConf    config.Configurator = config.New(config.Options{Env: true, Flag: true})
 		logger                         = logger.NewLogger()
 		appHandler                     = handlers.New(appConf, logger)
 		auth                           = auth.TurnOn(appHandler.Storage, appConf.GetSecretKey())
@@ -66,6 +69,7 @@ func New(sizeUID int) *AppServer {
 	}
 }
 
+// Run starts the server.
 func Run(appServer *AppServer) error {
 	go catchSignal(appServer)
 

@@ -6,7 +6,7 @@ import (
 	"github.com/alaleks/shortener/internal/app/service"
 )
 
-func (h *Handlers) ProcessingURLBatch(userID string, input []InShortenBatch) ([]OutShortenBatch, error) {
+func (h *Handlers) processingURLBatch(userID string, input []InShortenBatch) ([]OutShortenBatch, error) {
 	out := make([]OutShortenBatch, 0, len(input))
 
 	for _, item := range input {

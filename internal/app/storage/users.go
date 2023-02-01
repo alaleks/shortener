@@ -1,21 +1,13 @@
 package storage
 
 import (
-	"errors"
 	"strconv"
 )
 
-var (
-	ErrUserIDNotValid = errors.New("invalid user id")
-	ErrUserUrlsEmpty  = errors.New("shortened URLs for current user is empty")
-)
-
-type URLUser struct {
+func (ds *DefaultStorage) GetUrlsUser(userID string) ([]struct {
 	ShortUID string `json:"short_url"`
 	LongURL  string `json:"original_url"`
-}
-
-func (ds *DefaultStorage) GetUrlsUser(userID string) ([]URLUser, error) {
+}, error) {
 	uid, err := strconv.Atoi(userID)
 	if err != nil {
 		return nil, ErrUserIDNotValid
@@ -24,7 +16,10 @@ func (ds *DefaultStorage) GetUrlsUser(userID string) ([]URLUser, error) {
 	ds.mu.RLock()
 	uidsShortURL := ds.users[uint(uid)]
 
-	urls := make([]URLUser, 0, len(uidsShortURL))
+	urls := make([]struct {
+		ShortUID string `json:"short_url"`
+		LongURL  string `json:"original_url"`
+	}, 0, len(uidsShortURL))
 
 	if len(uidsShortURL) == 0 {
 		ds.mu.RUnlock()
@@ -34,7 +29,10 @@ func (ds *DefaultStorage) GetUrlsUser(userID string) ([]URLUser, error) {
 
 	for _, shortUID := range uidsShortURL {
 		if originalURL, err := ds.GetURL(shortUID); err == nil {
-			urls = append(urls, URLUser{ShortUID: ds.conf.GetBaseURL() + shortUID, LongURL: originalURL})
+			urls = append(urls, struct {
+				ShortUID string `json:"short_url"`
+				LongURL  string `json:"original_url"`
+			}{ShortUID: ds.conf.GetBaseURL() + shortUID, LongURL: originalURL})
 		}
 	}
 

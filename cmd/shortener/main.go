@@ -1,3 +1,4 @@
+// Application run
 package main
 
 import (
@@ -9,9 +10,9 @@ import (
 )
 
 func main() {
-	sizeUID := 5
-	server := serv.New(sizeUID)
+	server := serv.New()
 
+	// Run server for pprof
 	go func() {
 		server.Logger.LZ.Fatal(http.ListenAndServe(":3031", nil))
 	}()

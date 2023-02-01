@@ -2,7 +2,6 @@ package storage
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"strconv"
 	"sync"
@@ -18,15 +17,9 @@ import (
 )
 
 const (
-	MaxIdleConns = 100
-	MaxOpenConns = 200
-	MaxLifetime  = (15 * time.Minute)
-)
-
-var (
-	ErrAlreadyExists = errors.New("such an entry exists in the database")
-	ErrDBConnection  = errors.New("failed to check database connection")
-	ErrInvalidData   = errors.New("data invalid")
+	maxIdleConns = 100
+	maxOpenConns = 200
+	maxLifetime  = (15 * time.Minute)
 )
 
 type DB struct {
@@ -62,9 +55,9 @@ func (d *DB) Init() error {
 	sqlDB, err := db.DB()
 
 	if err == nil {
-		sqlDB.SetMaxIdleConns(MaxIdleConns)
-		sqlDB.SetMaxOpenConns(MaxOpenConns)
-		sqlDB.SetConnMaxLifetime(MaxLifetime)
+		sqlDB.SetMaxIdleConns(maxIdleConns)
+		sqlDB.SetMaxOpenConns(maxOpenConns)
+		sqlDB.SetConnMaxLifetime(maxLifetime)
 	}
 
 	return nil
@@ -273,13 +266,22 @@ func getUrlsUser(db *gorm.DB, uid uint) []models.Urls {
 	return urls
 }
 
-func (d *DB) GetUrlsUser(userID string) ([]URLUser, error) {
+func (d *DB) GetUrlsUser(userID string) ([]struct {
+	ShortUID string `json:"short_url"`
+	LongURL  string `json:"original_url"`
+}, error) {
 	uid, err := strconv.Atoi(userID)
 	if err != nil {
-		return []URLUser{}, ErrUserIDNotValid
+		return []struct {
+			ShortUID string `json:"short_url"`
+			LongURL  string `json:"original_url"`
+		}{}, ErrUserIDNotValid
 	}
 
-	var urls []URLUser
+	var urls []struct {
+		ShortUID string `json:"short_url"`
+		LongURL  string `json:"original_url"`
+	}
 
 	d.db.Model(models.Urls{}).
 		Where("uid = ?", uid).Find(&urls)
@@ -291,22 +293,34 @@ func (d *DB) GetUrlsUser(userID string) ([]URLUser, error) {
 	return urls, nil
 }
 
-func (d *DB) GetUrlsUserOld(userID string) ([]URLUser, error) {
+func (d *DB) GetUrlsUserOld(userID string) ([]struct {
+	ShortUID string `json:"short_url"`
+	LongURL  string `json:"original_url"`
+}, error) {
 	uid, err := strconv.Atoi(userID)
 	if err != nil {
-		return []URLUser{}, ErrUserIDNotValid
+		return []struct {
+			ShortUID string `json:"short_url"`
+			LongURL  string `json:"original_url"`
+		}{}, ErrUserIDNotValid
 	}
 
 	urls := getUrlsUser(d.db, uint(uid))
 
-	usersURL := make([]URLUser, 0, len(urls))
+	usersURL := make([]struct {
+		ShortUID string `json:"short_url"`
+		LongURL  string `json:"original_url"`
+	}, 0, len(urls))
 
 	if len(urls) == 0 {
 		return usersURL, ErrUserUrlsEmpty
 	}
 
 	for _, item := range urls {
-		usersURL = append(usersURL, URLUser{
+		usersURL = append(usersURL, struct {
+			ShortUID string `json:"short_url"`
+			LongURL  string `json:"original_url"`
+		}{
 			ShortUID: item.ShortUID,
 			LongURL:  item.LongURL,
 		})

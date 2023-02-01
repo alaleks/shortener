@@ -1,3 +1,4 @@
+// The auth package implements Cookie-based authorization.
 package auth
 
 import (
@@ -14,6 +15,7 @@ import (
 	"github.com/alaleks/shortener/internal/app/storage"
 )
 
+// ErrInvalidSign - indicates that the signature is invalid.
 var ErrInvalidSign = errors.New("this signing is invalid")
 
 const (
@@ -21,15 +23,18 @@ const (
 	lifeTimeCookie = 2592000
 )
 
+// Auth structure storing a link to storage and a secret key as an array of bytes.
 type Auth struct {
 	store     *storage.Store
 	secretKey []byte
 }
 
+// TurnOn activates site authorization.
 func TurnOn(store *storage.Store, secretKey []byte) Auth {
 	return Auth{store: store, secretKey: secretKey}
 }
 
+// CreateSigningOld (Deprecated) creates a signature for the cookie.
 func (a *Auth) CreateSigningOld(uid uint) string {
 	mac := hmac.New(sha256.New, a.secretKey)
 	mac.Write([]byte(strconv.Itoa(int(uid))))
@@ -39,6 +44,9 @@ func (a *Auth) CreateSigningOld(uid uint) string {
 	return base64.URLEncoding.EncodeToString(signature)
 }
 
+// CreateSigning creates a signature for the cookie.
+// Encryption is performed according to the sha256 algorithm.
+// The secret key and user ID are used for encryption
 func (a *Auth) CreateSigning(uid uint) string {
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, uint64(uid))
@@ -51,6 +59,7 @@ func (a *Auth) CreateSigning(uid uint) string {
 	return base64.URLEncoding.EncodeToString(signature)
 }
 
+// ReadSigning (Deprecated)  decrypts cookie value and returns user ID and error value.
 func (a *Auth) ReadSigningOld(cookieVal string) (uint, error) {
 	signedVal, err := base64.URLEncoding.DecodeString(cookieVal)
 	if err != nil {
@@ -74,6 +83,7 @@ func (a *Auth) ReadSigningOld(cookieVal string) (uint, error) {
 	return uint(uid), nil
 }
 
+// ReadSigning decrypts cookie value and returns user ID and error value.
 func (a *Auth) ReadSigning(cookieVal string) (uint, error) {
 	signedVal, err := base64.URLEncoding.DecodeString(cookieVal)
 	if err != nil {
@@ -92,6 +102,8 @@ func (a *Auth) ReadSigning(cookieVal string) (uint, error) {
 	return uint(int64(binary.LittleEndian.Uint64(signedVal[sha256.Size:]))), nil
 }
 
+// Authorization method middleware, which performs an authorization check
+// or creates a new user if the authorization cookie value is empty or invalid.
 func (a *Auth) Authorization(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
 		authCookie, err := getCookie(req, cookieName)

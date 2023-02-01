@@ -1,3 +1,4 @@
+// Package router registers application routers
 package router
 
 import (
@@ -7,6 +8,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// Create - registers application routers
 func Create(handler *handlers.Handlers) http.Handler {
 	mux := mux.NewRouter()
 	mux.HandleFunc("/", handler.ShortenURL).Methods(http.MethodPost)
