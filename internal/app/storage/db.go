@@ -22,12 +22,14 @@ const (
 	maxLifetime  = (15 * time.Minute)
 )
 
+// DB represents a database instance
 type DB struct {
 	db   *gorm.DB
 	conf config.Configurator
 	mu   sync.RWMutex
 }
 
+// NewDB creates a new DB instance.
 func NewDB(conf config.Configurator) *DB {
 	return &DB{
 		conf: conf,
@@ -35,6 +37,7 @@ func NewDB(conf config.Configurator) *DB {
 	}
 }
 
+// Init initialize a new database instance.
 func (d *DB) Init() error {
 	db, err := gorm.Open(postgres.Open(d.conf.GetDSN()), &gorm.Config{
 		CreateBatchSize:        1000,
@@ -63,6 +66,7 @@ func (d *DB) Init() error {
 	return nil
 }
 
+// Close - closes the database connection.
 func (d *DB) Close() error {
 	sqlDB, err := d.db.DB()
 	if err != nil {
@@ -78,6 +82,7 @@ func (d *DB) Close() error {
 	return nil
 }
 
+// Ping - checks the database connection.
 func (d *DB) Ping() error {
 	if d.db == nil {
 		return ErrDBConnection
@@ -97,7 +102,7 @@ func (d *DB) Ping() error {
 	return nil
 }
 
-func PingDB(sqlDB *sql.DB) error {
+func pingDB(sqlDB *sql.DB) error {
 	if err := sqlDB.Ping(); err != nil {
 		return fmt.Errorf("ping db error: %w", err)
 	}
@@ -105,6 +110,7 @@ func PingDB(sqlDB *sql.DB) error {
 	return nil
 }
 
+// Add - adding URL to the DB.
 func (d *DB) AddOld(longURL, userID string) (string, error) {
 	userIDtoInt, err := strconv.Atoi(userID)
 
@@ -127,6 +133,7 @@ func (d *DB) AddOld(longURL, userID string) (string, error) {
 	return d.conf.GetBaseURL() + uri.ShortUID, nil
 }
 
+// Delete removing data from URLs by UID.
 func (d *DB) Delete(shortURL string) error {
 	res := d.db.Where("short_uid = ?", shortURL).
 		Delete(&models.Urls{})
@@ -134,12 +141,7 @@ func (d *DB) Delete(shortURL string) error {
 	return res.Error
 }
 
-func writeURL(db *gorm.DB, uri models.Urls) int {
-	res := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&uri)
-
-	return int(res.RowsAffected)
-}
-
+// Add (optimize) - adding URL to the DB.
 func (d *DB) Add(longURL, userID string) (string, error) {
 	var uri models.Urls
 	res := d.db.Where("long_url = ?", longURL).FirstOrInit(&uri)
@@ -159,14 +161,7 @@ func (d *DB) Add(longURL, userID string) (string, error) {
 	return d.conf.GetBaseURL() + uri.ShortUID, nil
 }
 
-func getShortUID(db *gorm.DB, longURL, baseURL string) string {
-	var uri models.Urls
-
-	db.Where("long_url = ?", longURL).Find(&uri)
-
-	return baseURL + uri.ShortUID
-}
-
+// AddBatch - adding URL to the DB (batch insert).
 func (d *DB) AddBatch(longURL, userID, corID string) string {
 	userIDtoInt, err := strconv.Atoi(userID)
 
@@ -188,12 +183,7 @@ func (d *DB) AddBatch(longURL, userID, corID string) string {
 	return d.conf.GetBaseURL() + uri.ShortUID
 }
 
-func writeURLBatch(db *gorm.DB, uri models.Urls) int {
-	res := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&uri)
-
-	return int(res.RowsAffected)
-}
-
+// Update changes short link usage statistics.
 func (d *DB) UpdateOld(uid string) {
 	var url models.Urls
 
@@ -210,12 +200,14 @@ func (d *DB) UpdateOld(uid string) {
 	d.db.Save(&url)
 }
 
+// Update (optimize) changes short link usage statistics.
 func (d *DB) Update(uid string) {
 	d.db.Model(&models.Urls{}).
 		Where("short_uid = ?", uid).
 		UpdateColumn("statistics", gorm.Expr("statistics + ?", 1))
 }
 
+// GetURL returns the original url by its id.
 func (d *DB) GetURL(uid string) (string, error) {
 	var url models.Urls
 
@@ -232,6 +224,7 @@ func (d *DB) GetURL(uid string) (string, error) {
 	return url.LongURL, nil
 }
 
+// Stat returns short link statistics by its id.
 func (d *DB) Stat(uid string) (Statistics, error) {
 	var uri models.Urls
 
@@ -251,6 +244,7 @@ func (d *DB) Stat(uid string) (Statistics, error) {
 	return stat, nil
 }
 
+// Create - add new user in DefaultStorage.
 func (d *DB) Create() uint {
 	user := models.Users{}
 	d.db.Create(&user)
@@ -266,6 +260,7 @@ func getUrlsUser(db *gorm.DB, uid uint) []models.Urls {
 	return urls
 }
 
+// GetUrlsUser (optimize) - getting shorts URLs from DB for current user.
 func (d *DB) GetUrlsUser(userID string) ([]struct {
 	ShortUID string `json:"short_url"`
 	LongURL  string `json:"original_url"`
@@ -293,6 +288,7 @@ func (d *DB) GetUrlsUser(userID string) ([]struct {
 	return urls, nil
 }
 
+// GetUrlsUser - getting shorts URLs from DB for current user.
 func (d *DB) GetUrlsUserOld(userID string) ([]struct {
 	ShortUID string `json:"short_url"`
 	LongURL  string `json:"original_url"`
@@ -329,6 +325,7 @@ func (d *DB) GetUrlsUserOld(userID string) ([]struct {
 	return usersURL, nil
 }
 
+// DelUrls marks as deleted urls added by a specific user.
 func (d *DB) DelUrls(userID string, shortsUID ...string) error {
 	if len(shortsUID) == 0 || userID == "" {
 		return ErrInvalidData
@@ -346,4 +343,24 @@ func (d *DB) DelUrls(userID string, shortsUID ...string) error {
 		})
 
 	return res.Error
+}
+
+func writeURL(db *gorm.DB, uri models.Urls) int {
+	res := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&uri)
+
+	return int(res.RowsAffected)
+}
+
+func getShortUID(db *gorm.DB, longURL, baseURL string) string {
+	var uri models.Urls
+
+	db.Where("long_url = ?", longURL).Find(&uri)
+
+	return baseURL + uri.ShortUID
+}
+
+func writeURLBatch(db *gorm.DB, uri models.Urls) int {
+	res := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&uri)
+
+	return int(res.RowsAffected)
 }

@@ -10,21 +10,25 @@ import (
 	"github.com/alaleks/shortener/internal/app/service"
 )
 
-type DefaultStorage struct {
-	conf  config.Configurator
-	urls  map[string]*URLElement // where key uid short url
-	users map[uint][]string      // where key uid user, value a UID of short URL
-	mu    sync.RWMutex
-}
+// Data Structures
+type (
+	DefaultStorage struct {
+		conf  config.Configurator
+		urls  map[string]*URLElement // where key uid short url
+		users map[uint][]string      // where key uid user, value a UID of short URL
+		mu    sync.RWMutex
+	}
 
-type URLElement struct {
-	CreatedAt     time.Time
-	LongURL       string
-	CorrelationID string
-	Statistics    uint // short URL usage statistics (actually this is the number of redirects)
-	Removed       bool
-}
+	URLElement struct {
+		CreatedAt     time.Time
+		LongURL       string
+		CorrelationID string
+		Statistics    uint // short URL usage statistics (actually this is the number of redirects)
+		Removed       bool
+	}
+)
 
+// NewDefault creates a new default storage.
 func NewDefault(conf config.Configurator) *DefaultStorage {
 	return &DefaultStorage{
 		urls:  make(map[string]*URLElement),
@@ -34,6 +38,7 @@ func NewDefault(conf config.Configurator) *DefaultStorage {
 	}
 }
 
+// Add - adds data to the storage.
 func (ds *DefaultStorage) Add(longURL, userID string) (string, error) {
 	if !strings.HasPrefix(longURL, "http") {
 		longURL = "http://" + longURL
@@ -62,6 +67,7 @@ func (ds *DefaultStorage) Add(longURL, userID string) (string, error) {
 	return ds.conf.GetBaseURL() + uid, nil
 }
 
+// AddBatch - adds data to storage when batch processing.
 func (ds *DefaultStorage) AddBatch(longURL, userID, corID string) string {
 	if !strings.HasPrefix(longURL, "http") {
 		longURL = "http://" + longURL
@@ -91,6 +97,7 @@ func (ds *DefaultStorage) AddBatch(longURL, userID, corID string) string {
 	return ds.conf.GetBaseURL() + uid
 }
 
+// GetURL returns the original url by its id.
 func (ds *DefaultStorage) GetURL(uid string) (string, error) {
 	ds.mu.RLock()
 	uri, check := ds.urls[uid]
@@ -107,6 +114,7 @@ func (ds *DefaultStorage) GetURL(uid string) (string, error) {
 	return uri.LongURL, nil
 }
 
+// Update changes short link usage statistics.
 func (ds *DefaultStorage) Update(uid string) {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()
@@ -117,6 +125,7 @@ func (ds *DefaultStorage) Update(uid string) {
 	}
 }
 
+// Stat returns short link statistics by its id.
 func (ds *DefaultStorage) Stat(uid string) (Statistics, error) {
 	ds.mu.RLock()
 	uri, check := ds.urls[uid]
@@ -136,6 +145,7 @@ func (ds *DefaultStorage) Stat(uid string) (Statistics, error) {
 	return stat, nil
 }
 
+// DelUrls marks as deleted urls added by a specific user.
 func (ds *DefaultStorage) DelUrls(userID string, shortsUID ...string) error {
 	uid, err := strconv.Atoi(userID)
 	if err != nil {
