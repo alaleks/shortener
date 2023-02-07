@@ -64,3 +64,58 @@ func TestCreateShortId(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkIsURL(b *testing.B) {
+	uri := "https://ya.ru/"
+	uri2 := "http://ya.ru/"
+	uri3 := "www.ya.ru/"
+	uri4 := "htts://ya.ru"
+
+	b.Run("before optimize https", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = service.IsURLOld(uri)
+		}
+	})
+
+	b.Run("after optimize https", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = service.IsURL(uri)
+		}
+	})
+
+	b.Run("before optimize http", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = service.IsURLOld(uri2)
+		}
+	})
+
+	b.Run("after optimize http", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = service.IsURL(uri2)
+		}
+	})
+
+	b.Run("before optimize www", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = service.IsURLOld(uri3)
+		}
+	})
+
+	b.Run("after optimize www", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = service.IsURL(uri3)
+		}
+	})
+
+	b.Run("before optimize wrong url", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = service.IsURLOld(uri4)
+		}
+	})
+
+	b.Run("after optimize www wrong url", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = service.IsURL(uri4)
+		}
+	})
+}

@@ -1,3 +1,4 @@
+// Package handlers implements application route handlers
 package handlers
 
 import (
@@ -11,6 +12,9 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// ShortenURL implements URL shortening.
+//
+// POST /, text: "http://github.com/alaleks/shortener".
 func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 	var userID string
 
@@ -55,6 +59,9 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// ParseShortURL takes a short URL and redirects at the original URL.
+//
+// GET /{uid}
 func (h *Handlers) ParseShortURL(writer http.ResponseWriter, req *http.Request) {
 	uid := mux.Vars(req)["uid"]
 
@@ -66,7 +73,13 @@ func (h *Handlers) ParseShortURL(writer http.ResponseWriter, req *http.Request) 
 
 	longURL, err := h.Storage.Store.GetURL(uid)
 	if err != nil {
-		http.Error(writer, err.Error(), http.StatusBadRequest)
+		status := http.StatusBadRequest
+
+		if errors.Is(err, storage.ErrShortURLRemoved) {
+			status = http.StatusGone
+		}
+
+		http.Error(writer, err.Error(), status)
 
 		return
 	}
@@ -77,6 +90,9 @@ func (h *Handlers) ParseShortURL(writer http.ResponseWriter, req *http.Request) 
 	writer.WriteHeader(http.StatusTemporaryRedirect)
 }
 
+// Ping test the application.
+//
+// GET /ping
 func (h *Handlers) Ping(writer http.ResponseWriter, req *http.Request) {
 	if err := h.Storage.Store.Ping(); err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)

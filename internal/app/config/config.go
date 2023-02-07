@@ -1,17 +1,27 @@
+// Package config contains configuration for application
+// and functions for its settings.
 package config
 
 import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
+const (
+	defaultSizeUID = 5
+)
+
+// Configurator interface is used for application settings
+// by combining interfaces Recipient and Tuner interfaces.
 type Configurator interface {
 	Recipient
 	Tuner
 }
 
+// Recipient interface implements methods for getting settings parameters.
 type Recipient interface {
 	GetServAddr() string
 	GetBaseURL() string
@@ -21,20 +31,32 @@ type Recipient interface {
 	GetSizeUID() int
 }
 
+// Tuner interface implements methods for configuring tuning.
 type Tuner interface {
 	DefineOptionsEnv()
 	DefineOptionsFlags([]string)
 }
 
+// AppConfig struct with data for configuring the application.
 type AppConfig struct {
-	serverAddr      string
-	baseURL         string
+	// servAddr is the address for server run.
+	serverAddr string
+	// baseURL is the URL app.
+	baseURL string
+	// fileStoragePath is the path for filestorage.
 	fileStoragePath string
-	dsn             string
-	secretKey       []byte
-	sizeUID         int
+	// dsn is the database connection string.
+	dsn string
+	// secretKey is designed for encryption and decryption of authorization data.
+	secretKey []byte
+	// sizeUID sets the size of the short URL ID.
+	sizeUID int
 }
 
+// The Options structure contains application configuration
+// launch options with both environment variables and flags.
+// If Env and Flag are set to true, the configuration
+// will give priority to the flags.
 type Options struct {
 	Env  bool
 	Flag bool
@@ -45,16 +67,18 @@ type confFlags struct {
 	baseURL         *string
 	fileStoragePath *string
 	dsn             *string
+	sizeUID         *string
 }
 
-func New(opt Options, sizeUID int) *AppConfig {
+// New returns a pointer of struct that implements the Configurator interface.
+func New(opt Options) *AppConfig {
 	appConf := AppConfig{
 		serverAddr:      "localhost:8080",
 		baseURL:         "http://localhost:8080/",
 		fileStoragePath: "",
 		dsn:             "",
 		secretKey:       []byte("9EE3BF9351DFCFF24CD6DA2C4D963"),
-		sizeUID:         sizeUID,
+		sizeUID:         defaultSizeUID,
 	}
 
 	if opt.Env {
@@ -68,30 +92,38 @@ func New(opt Options, sizeUID int) *AppConfig {
 	return &appConf
 }
 
+// GetServAddr returns host for run server.
 func (a *AppConfig) GetServAddr() string {
 	return a.serverAddr
 }
 
+// GetBaseURL returns the url of the application.
 func (a *AppConfig) GetBaseURL() string {
 	return a.baseURL
 }
 
+// GetFileStoragePath returns path for filestorage.
 func (a *AppConfig) GetFileStoragePath() string {
 	return a.fileStoragePath
 }
 
+// GetSecretKey returns secret key
+// for encryption and decryption of authorization data.
 func (a *AppConfig) GetSecretKey() []byte {
 	return a.secretKey
 }
 
+// GetDSN returns the database connection string.
 func (a *AppConfig) GetDSN() string {
 	return a.dsn
 }
 
+// GetSizeUID return the size of the short URL ID.
 func (a *AppConfig) GetSizeUID() int {
 	return a.sizeUID
 }
 
+// DefineOptionsEnv implements application configuration using environment variables.
 func (a *AppConfig) DefineOptionsEnv() {
 	if servAddr, ok := os.LookupEnv("SERVER_ADDRESS"); ok && servAddr != "" {
 		a.serverAddr = servAddr
@@ -111,10 +143,18 @@ func (a *AppConfig) DefineOptionsEnv() {
 		a.dsn = dsn
 	}
 
-	// проверяем корректность опций
+	if sizeUID, ok := os.LookupEnv("SIZE_UID"); ok && sizeUID != "" {
+		i, err := strconv.Atoi(sizeUID)
+		if err == nil && i > 3 {
+			a.sizeUID = i
+		}
+	}
+
+	// Сheck if the options are correct.
 	a.checkOptions()
 }
 
+// DefineOptionsFlags implements application configuration using flags.
 func (a *AppConfig) DefineOptionsFlags(args []string) {
 	confFlags, err := parseFlags(args)
 	if err != nil {
@@ -139,7 +179,14 @@ func (a *AppConfig) DefineOptionsFlags(args []string) {
 		a.dsn = *confFlags.dsn
 	}
 
-	// проверяем корректность опций
+	if *confFlags.sizeUID != "" {
+		i, err := strconv.Atoi(*confFlags.sizeUID)
+		if err == nil && i > 3 {
+			a.sizeUID = i
+		}
+	}
+
+	// Сheck if the options are correct.
 	a.checkOptions()
 }
 
@@ -152,6 +199,7 @@ func parseFlags(args []string) (*confFlags, error) {
 	confFlags.baseURL = flags.String("b", "", "BASE_URL")
 	confFlags.fileStoragePath = flags.String("f", "", "FILE_STORAGE_PATH")
 	confFlags.dsn = flags.String("d", "", "DATABASE_DSN")
+	confFlags.sizeUID = flags.String("s", "", "SIZE_UID")
 
 	err := flags.Parse(args[1:])
 	if err != nil {
@@ -164,9 +212,9 @@ func parseFlags(args []string) (*confFlags, error) {
 func (a *AppConfig) checkOptions() {
 	httpPrefix := "http://"
 
-	// проверка адреса сервера, должен быть указан порт
+	// Check server address, port must be specified.
 	if !strings.Contains(a.serverAddr, ":") {
-		// если порт не указан, то добавляем 8080
+		// If the port is not specified, then add the default value :8080.
 		a.serverAddr += ":8080"
 	}
 

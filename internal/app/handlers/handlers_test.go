@@ -9,6 +9,7 @@ import (
 
 	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/handlers"
+	"github.com/alaleks/shortener/internal/app/logger"
 	"github.com/alaleks/shortener/internal/app/router"
 )
 
@@ -16,15 +17,16 @@ func TestShortenURL(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
-	testHandler := handlers.New(appConf)
+	appConf := config.New(config.Options{Env: false, Flag: false})
+	logger := logger.NewLogger()
+	testHandler := handlers.New(appConf, logger)
 
 	tests := []struct {
 		name     string
-		code     int
 		url      string
 		endpoint string
 		body     string
+		code     int
 	}{
 		{name: "url с https", code: 201, url: "https://github.com/alaleks/shortener"},
 		{name: "url с http", code: 201, url: "http://github.com/alaleks/shortener"},
@@ -70,17 +72,18 @@ func TestParseShortURL(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
-	testHandler := handlers.New(appConf)
+	appConf := config.New(config.Options{Env: false, Flag: false})
+	logger := logger.NewLogger()
+	testHandler := handlers.New(appConf, logger)
 	longURL := "https://github.com/alaleks/shortener"
 	shortURL, _ := testHandler.Storage.Store.Add(longURL, "1")
 	routers := router.Create(testHandler)
 
 	tests := []struct {
 		name     string
-		code     int
 		shortURL string
 		longURL  string
+		code     int
 	}{
 		{
 			name: "парсинг корректной короткой ссылки", code: 307,

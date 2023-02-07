@@ -6,6 +6,7 @@ require github.com/gorilla/mux v1.8.0
 
 require (
 	github.com/lib/pq v1.10.7
+	go.uber.org/zap v1.24.0
 	gorm.io/driver/postgres v1.4.5
 	gorm.io/gorm v1.24.2
 )
@@ -21,6 +22,8 @@ require (
 	github.com/jackc/pgx/v4 v4.17.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	go.uber.org/atomic v1.10.0 // indirect
+	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/crypto v0.3.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 )

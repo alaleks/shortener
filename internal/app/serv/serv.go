@@ -1,3 +1,4 @@
+// Package serv creates, starts and stops a web server.
 package serv
 
 import (
@@ -11,6 +12,7 @@ import (
 
 	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/handlers"
+	"github.com/alaleks/shortener/internal/app/logger"
 	"github.com/alaleks/shortener/internal/app/router"
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
 	"github.com/alaleks/shortener/internal/app/serv/middleware/auth"
@@ -18,45 +20,56 @@ import (
 )
 
 const (
-	defaultTimeout           = time.Second
+	defaultTimeout           = 2 * time.Second
 	defaultReadHeaderTimeout = 2 * time.Second
 	defaultIdleTimeout       = 15 * time.Second
 	maxHeaderBytes           = 4096
 )
 
+// AppServer represents an application server instance.
 type AppServer struct {
 	server   *http.Server
 	handlers *handlers.Handlers
+	Logger   *logger.AppLogger
 	conf     config.Configurator
 }
 
-func New(sizeUID int) *AppServer {
+// New creates a new server.
+func New() *AppServer {
 	var (
-		appConf    config.Configurator = config.New(config.Options{Env: true, Flag: true}, sizeUID)
-		appHandler                     = handlers.New(appConf)
+		appConf    config.Configurator = config.New(config.Options{Env: true, Flag: true})
+		logger                         = logger.NewLogger()
+		appHandler                     = handlers.New(appConf, logger)
 		auth                           = auth.TurnOn(appHandler.Storage, appConf.GetSecretKey())
+		routers                        = router.Create(appHandler)
 	)
 
 	server := &http.Server{
-		Handler: middleware.New(compress.Compression, compress.Unpacking, auth.Authorization).
-			Configure(router.Create(appHandler)),
+		Handler: middleware.New(compress.Compression, compress.Decompression, auth.Authorization).
+			Configure(routers),
 		ReadTimeout:       defaultTimeout,
 		WriteTimeout:      defaultTimeout,
 		IdleTimeout:       defaultIdleTimeout,
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
 		Addr:              appConf.GetServAddr(),
+		ErrorLog:          log.New(logger, "", 0),
 		TLSConfig:         nil,
 		MaxHeaderBytes:    maxHeaderBytes,
 		TLSNextProto:      nil,
 		ConnState:         nil,
-		ErrorLog:          nil,
 		BaseContext:       nil,
 		ConnContext:       nil,
 	}
 
-	return &AppServer{server: server, handlers: appHandler, conf: appConf}
+	return &AppServer{
+		server:   server,
+		handlers: appHandler,
+		conf:     appConf,
+		Logger:   logger,
+	}
 }
 
+// Run starts the server.
 func Run(appServer *AppServer) error {
 	go catchSignal(appServer)
 
@@ -78,14 +91,18 @@ func catchSignal(appServer *AppServer) {
 	for {
 		select {
 		case <-termSignals:
+			appServer.handlers.Storage.Pool.Stop()
+
 			if err := appServer.handlers.Storage.Store.Close(); err != nil {
-				log.Fatal(err)
+				appServer.Logger.LZ.Fatal(err)
 			}
 
-			log.Fatal(appServer.server.Shutdown(context.Background()))
+			if err := appServer.server.Shutdown(context.Background()); err != nil {
+				appServer.Logger.LZ.Fatal(err)
+			}
 		case <-reloadSignals:
 			if err := appServer.handlers.Storage.Store.Close(); err != nil {
-				log.Fatal(err)
+				appServer.Logger.LZ.Fatal(err)
 			}
 		}
 	}

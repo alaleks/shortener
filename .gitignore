@@ -15,6 +15,17 @@
 cmd/shortener/main
 cmd/shortener/shortener
 
+# Log
+log.json
+
+# FileStorage
+cmd/shortener/storage
+
+#pprof
+cmd/prof
+
+# Vendor
+vendor/
 
 # IDEs directories
 .idea

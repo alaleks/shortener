@@ -2,9 +2,9 @@ package storage
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/alaleks/shortener/internal/app/config"
@@ -17,27 +17,32 @@ import (
 )
 
 const (
-	MaxIdleConns = 5
-	MaxOpenConns = 50
-	MaxLifetime  = time.Hour
+	maxIdleConns = 100
+	maxOpenConns = 200
+	maxLifetime  = (15 * time.Minute)
 )
 
-var (
-	ErrAlreadyExists = errors.New("such an entry exists in the database")
-	ErrDBConnection  = errors.New("failed to check database connection")
-)
-
+// DB represents a database instance
 type DB struct {
 	db   *gorm.DB
 	conf config.Configurator
+	mu   sync.RWMutex
 }
 
+// NewDB creates a pointer of DB instance.
 func NewDB(conf config.Configurator) *DB {
-	return &DB{conf: conf}
+	return &DB{
+		conf: conf,
+		mu:   sync.RWMutex{},
+	}
 }
 
+// Init initialize a new database instance.
 func (d *DB) Init() error {
-	db, err := gorm.Open(postgres.Open(d.conf.GetDSN()), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(d.conf.GetDSN()), &gorm.Config{
+		CreateBatchSize:        1000,
+		SkipDefaultTransaction: true,
+	})
 	if err != nil {
 		return fmt.Errorf("database connection error: %w", err)
 	}
@@ -53,14 +58,15 @@ func (d *DB) Init() error {
 	sqlDB, err := db.DB()
 
 	if err == nil {
-		sqlDB.SetMaxIdleConns(MaxIdleConns)
-		sqlDB.SetMaxOpenConns(MaxOpenConns)
-		sqlDB.SetConnMaxLifetime(MaxLifetime)
+		sqlDB.SetMaxIdleConns(maxIdleConns)
+		sqlDB.SetMaxOpenConns(maxOpenConns)
+		sqlDB.SetConnMaxLifetime(maxLifetime)
 	}
 
 	return nil
 }
 
+// Close performs closing the database connection.
 func (d *DB) Close() error {
 	sqlDB, err := d.db.DB()
 	if err != nil {
@@ -73,9 +79,10 @@ func (d *DB) Close() error {
 		return fmt.Errorf("db connection closed error: %w", err)
 	}
 
-	return err
+	return nil
 }
 
+// Ping performs checking the database connection.
 func (d *DB) Ping() error {
 	if d.db == nil {
 		return ErrDBConnection
@@ -92,27 +99,24 @@ func (d *DB) Ping() error {
 		return fmt.Errorf("ping db error: %w", err)
 	}
 
-	return err
+	return nil
 }
 
-func PingDB(sqlDB *sql.DB) error {
-	err := sqlDB.Ping()
-	if err != nil {
+func pingDB(sqlDB *sql.DB) error {
+	if err := sqlDB.Ping(); err != nil {
 		return fmt.Errorf("ping db error: %w", err)
 	}
 
-	return err
+	return nil
 }
 
-func (d *DB) Add(longURL, userID string) (string, error) {
-	if d.Ping() != nil {
-		return "", ErrDBConnection
-	}
-
+// AddOld (Deprecated) performs adding URL to the DB.
+func (d *DB) AddOld(longURL, userID string) (string, error) {
 	userIDtoInt, err := strconv.Atoi(userID)
 
 	uri := models.Urls{
-		ShortUID: service.GenUID(d.conf.GetSizeUID()), LongURL: longURL,
+		ShortUID:  service.GenUID(d.conf.GetSizeUID()),
+		LongURL:   longURL,
 		CreatedAt: time.Now(),
 	}
 
@@ -129,30 +133,41 @@ func (d *DB) Add(longURL, userID string) (string, error) {
 	return d.conf.GetBaseURL() + uri.ShortUID, nil
 }
 
-func writeURL(db *gorm.DB, uri models.Urls) int {
-	res := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&uri)
+// Delete performs removing data from shortens URLs by UID.
+func (d *DB) Delete(shortURL string) error {
+	res := d.db.Where("short_uid = ?", shortURL).
+		Delete(&models.Urls{})
 
-	return int(res.RowsAffected)
+	return res.Error
 }
 
-func getShortUID(db *gorm.DB, longURL, baseURL string) string {
+// Add performs adding URL to the DB.
+func (d *DB) Add(longURL, userID string) (string, error) {
 	var uri models.Urls
-
-	db.Where("long_url = ?", longURL).Find(&uri)
-
-	return baseURL + uri.ShortUID
-}
-
-func (d *DB) AddBatch(longURL, userID, corID string) string {
-	if d.Ping() != nil {
-		return ""
+	res := d.db.Where("long_url = ?", longURL).FirstOrInit(&uri)
+	if res.RowsAffected > 0 {
+		return d.conf.GetBaseURL() + uri.ShortUID, ErrAlreadyExists
 	}
 
+	uri.LongURL = longURL
+	uri.ShortUID = service.GenUID(d.conf.GetSizeUID())
+	userIDtoInt, err := strconv.Atoi(userID)
+	if err == nil {
+		uri.UID = uint(userIDtoInt)
+	}
+
+	d.db.Create(&uri)
+
+	return d.conf.GetBaseURL() + uri.ShortUID, nil
+}
+
+// AddBatch performs adding URL to the DB (batch insert).
+func (d *DB) AddBatch(longURL, userID, corID string) string {
 	userIDtoInt, err := strconv.Atoi(userID)
 
 	uri := models.Urls{
-		ShortUID: service.GenUID(d.conf.GetSizeUID()), LongURL: longURL,
-		CreatedAt: time.Now(),
+		ShortUID: service.GenUID(d.conf.GetSizeUID()),
+		LongURL:  longURL,
 	}
 
 	if err == nil {
@@ -168,35 +183,32 @@ func (d *DB) AddBatch(longURL, userID, corID string) string {
 	return d.conf.GetBaseURL() + uri.ShortUID
 }
 
-func writeURLBatch(db *gorm.DB, uri models.Urls) int {
-	res := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&uri)
-
-	return int(res.RowsAffected)
-}
-
-func (d *DB) Update(uid string) {
-	if d.Ping() != nil {
-		return
-	}
-
+// UpdateOld changes short link usage statistics.
+func (d *DB) UpdateOld(uid string) {
 	var url models.Urls
 
 	res := d.db.Where("short_uid = ?", uid).First(&url)
 
-	if res.Error != nil {
+	if res.Error != nil || res.RowsAffected == 0 {
 		return
 	}
 
+	d.mu.Lock()
 	url.Statistics++
+	d.mu.Unlock()
 
 	d.db.Save(&url)
 }
 
-func (d *DB) GetURL(uid string) (string, error) {
-	if d.Ping() != nil {
-		return "", ErrDBConnection
-	}
+// Update changes short link usage statistics.
+func (d *DB) Update(uid string) {
+	d.db.Model(&models.Urls{}).
+		Where("short_uid = ?", uid).
+		UpdateColumn("statistics", gorm.Expr("statistics + ?", 1))
+}
 
+// GetURL returns the original url by its id.
+func (d *DB) GetURL(uid string) (string, error) {
 	var url models.Urls
 
 	res := d.db.Where("short_uid = ?", uid).First(&url)
@@ -205,14 +217,15 @@ func (d *DB) GetURL(uid string) (string, error) {
 		return url.LongURL, ErrUIDNotValid
 	}
 
+	if url.Removed {
+		return url.LongURL, ErrShortURLRemoved
+	}
+
 	return url.LongURL, nil
 }
 
+// Stat returns short link uses statistics by its short UID.
 func (d *DB) Stat(uid string) (Statistics, error) {
-	if d.Ping() != nil {
-		return Statistics{}, ErrDBConnection
-	}
-
 	var uri models.Urls
 
 	res := d.db.Where("short_uid = ?", uid).First(&uri)
@@ -231,27 +244,13 @@ func (d *DB) Stat(uid string) (Statistics, error) {
 	return stat, nil
 }
 
+// Create performs adding new user in DB.
 func (d *DB) Create() uint {
-	if d.Ping() != nil {
-		return 0
-	}
-
-	user := models.Users{CreatedAt: time.Now()}
-
+	user := models.Users{}
 	d.db.Create(&user)
 
 	return user.UID
 }
-
-/*
-func getUser(db *gorm.DB, uid int) models.Users {
-	var user models.Users
-
-	db.Where("uid = ?", uid).First(&user)
-
-	return user
-}
-*/
 
 func getUrlsUser(db *gorm.DB, uid uint) []models.Urls {
 	var urls []models.Urls
@@ -261,30 +260,109 @@ func getUrlsUser(db *gorm.DB, uid uint) []models.Urls {
 	return urls
 }
 
-func (d *DB) GetUrlsUser(userID string) ([]URLUser, error) {
-	if d.Ping() != nil {
-		return []URLUser{}, ErrDBConnection
-	}
-
+// GetUrlsUser performs getting shorts URLs from DB for current user.
+func (d *DB) GetUrlsUser(userID string) ([]struct {
+	ShortUID string `json:"short_url"`
+	LongURL  string `json:"original_url"`
+}, error,
+) {
 	uid, err := strconv.Atoi(userID)
 	if err != nil {
-		return []URLUser{}, ErrUserIDNotValid
+		return []struct {
+			ShortUID string `json:"short_url"`
+			LongURL  string `json:"original_url"`
+		}{}, ErrUserIDNotValid
+	}
+
+	var urls []struct {
+		ShortUID string `json:"short_url"`
+		LongURL  string `json:"original_url"`
+	}
+
+	d.db.Model(models.Urls{}).
+		Where("uid = ?", uid).Find(&urls)
+
+	if len(urls) == 0 {
+		return urls, ErrUserUrlsEmpty
+	}
+
+	return urls, nil
+}
+
+// GetUrlsUserOld (Deprecated) performs getting shorts URLs from DB for current user.
+func (d *DB) GetUrlsUserOld(userID string) ([]struct {
+	ShortUID string `json:"short_url"`
+	LongURL  string `json:"original_url"`
+}, error,
+) {
+	uid, err := strconv.Atoi(userID)
+	if err != nil {
+		return []struct {
+			ShortUID string `json:"short_url"`
+			LongURL  string `json:"original_url"`
+		}{}, ErrUserIDNotValid
 	}
 
 	urls := getUrlsUser(d.db, uint(uid))
 
-	usersURL := make([]URLUser, 0, len(urls))
+	usersURL := make([]struct {
+		ShortUID string `json:"short_url"`
+		LongURL  string `json:"original_url"`
+	}, 0, len(urls))
 
 	if len(urls) == 0 {
 		return usersURL, ErrUserUrlsEmpty
 	}
 
 	for _, item := range urls {
-		usersURL = append(usersURL, URLUser{
-			ShortURL:    item.ShortUID,
-			OriginalURL: item.LongURL,
+		usersURL = append(usersURL, struct {
+			ShortUID string `json:"short_url"`
+			LongURL  string `json:"original_url"`
+		}{
+			ShortUID: item.ShortUID,
+			LongURL:  item.LongURL,
 		})
 	}
 
 	return usersURL, nil
+}
+
+// DelUrls marks as deleted urls added by a specific user.
+func (d *DB) DelUrls(userID string, shortsUID ...string) error {
+	if len(shortsUID) == 0 || userID == "" {
+		return ErrInvalidData
+	}
+
+	uid, err := strconv.Atoi(userID)
+	if err != nil {
+		return ErrUserIDNotValid
+	}
+
+	res := d.db.Model(models.Urls{}).
+		Where("short_uid IN ? AND uid = ?", shortsUID, uid).
+		Updates(models.Urls{
+			Removed: true,
+		})
+
+	return res.Error
+}
+
+func writeURL(db *gorm.DB, uri models.Urls) int {
+	res := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&uri)
+
+	return int(res.RowsAffected)
+}
+
+func getShortUID(db *gorm.DB, longURL, baseURL string) string {
+	var uri models.Urls
+
+	db.Where("long_url = ?", longURL).Find(&uri)
+
+	return baseURL + uri.ShortUID
+}
+
+func writeURLBatch(db *gorm.DB, uri models.Urls) int {
+	res := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&uri)
+
+	return int(res.RowsAffected)
 }
