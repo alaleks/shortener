@@ -286,7 +286,7 @@ func TestCompress(t *testing.T) {
 
 			// создаем запрос, рекордер, хэндлер, запускаем сервер
 			testRec := httptest.NewRecorder()
-			h := middleware.New(compress.Compression, compress.Unpacking).
+			h := middleware.New(compress.Compression, compress.Decompression).
 				Configure(http.HandlerFunc(testHandler.ShortenURLAPI))
 			req := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL(), bytes.NewBuffer([]byte(data)))
 			req.Header.Set("Content-Type", "application/json")

@@ -4,7 +4,7 @@ import (
 	"strconv"
 )
 
-// GetUrlsUser - getting shorts URLs from default storage for current user.
+// GetUrlsUser perfoms getting shorts URLs from default storage for current user.
 func (ds *DefaultStorage) GetUrlsUser(userID string) ([]struct {
 	ShortUID string `json:"short_url"`
 	LongURL  string `json:"original_url"`
@@ -47,7 +47,7 @@ func (ds *DefaultStorage) GetUrlsUser(userID string) ([]struct {
 	return urls, nil
 }
 
-// Create - add new user in DefaultStorage.
+// Create performs adding new user in DefaultStorage.
 func (ds *DefaultStorage) Create() uint {
 	ds.mu.Lock()
 	uid := uint(len(ds.users) + 1)

@@ -15,7 +15,7 @@ import (
 	"github.com/alaleks/shortener/internal/app/storage"
 )
 
-// ErrInvalidSign - indicates that the signature is invalid.
+// ErrInvalidSign is an indicator that the signature is invalid.
 var ErrInvalidSign = errors.New("this signing is invalid")
 
 const (
@@ -23,13 +23,13 @@ const (
 	lifeTimeCookie = 2592000
 )
 
-// Auth structure storing a link to storage and a secret key as an array of bytes.
+// Auth stores storing a link to storage and a secret key as an array of bytes.
 type Auth struct {
 	store     *storage.Store
 	secretKey []byte
 }
 
-// TurnOn activates site authorization.
+// TurnOn enables on-site authorization.
 func TurnOn(store *storage.Store, secretKey []byte) Auth {
 	return Auth{store: store, secretKey: secretKey}
 }
@@ -45,8 +45,9 @@ func (a *Auth) CreateSigningOld(uid uint) string {
 }
 
 // CreateSigning creates a signature for the cookie.
+//
 // Encryption is performed according to the sha256 algorithm.
-// The secret key and user ID are used for encryption
+// The secret key and user ID are used for encryption.
 func (a *Auth) CreateSigning(uid uint) string {
 	b := make([]byte, 8)
 	binary.LittleEndian.PutUint64(b, uint64(uid))
@@ -59,7 +60,7 @@ func (a *Auth) CreateSigning(uid uint) string {
 	return base64.URLEncoding.EncodeToString(signature)
 }
 
-// ReadSigning (Deprecated)  decrypts cookie value and returns user ID and error value.
+// ReadSigningOld (Deprecated) decrypts cookie value and returns user ID and error value.
 func (a *Auth) ReadSigningOld(cookieVal string) (uint, error) {
 	signedVal, err := base64.URLEncoding.DecodeString(cookieVal)
 	if err != nil {

@@ -25,7 +25,7 @@ type Task struct {
 	action func(data any) error
 }
 
-// Run - starts of worker pool.
+// Run starts of worker pool.
 func (p *Pool) Run() {
 	workers := []chan Task{}
 	for i := 0; i < runtime.NumCPU(); i++ {
@@ -41,7 +41,9 @@ func (p *Pool) Run() {
 	}
 }
 
-// Multiplexer implementation
+// Multiplexer implementation.
+//
+// This function multiplexes tasks to workers.
 func (p *Pool) multiplex(workers ...chan Task) {
 	output := func(task <-chan Task) {
 		for t := range task {
@@ -78,7 +80,7 @@ func (p *Pool) worker() chan Task {
 	return out
 }
 
-// Stop - stops the pool.
+// Stop performs stopping the pool.
 func (p *Pool) Stop() {
 	if p.active {
 		close(p.done)
@@ -92,7 +94,7 @@ func (p *Pool) SetNumWorker(num int) {
 	p.numWorker = runtime.NumCPU() * num
 }
 
-// AddTask adds a task to the pool.
+// AddTask performs adding a task to the pool.
 func (p *Pool) AddTask(data any, f func(data any) error) {
 	p.tasks <- Task{
 		data:   data,
@@ -100,7 +102,7 @@ func (p *Pool) AddTask(data any, f func(data any) error) {
 	}
 }
 
-// Init initializes the pool instance.
+// Init returns a poinntor for the pool instance.
 func Init(logger *logger.AppLogger) *Pool {
 	return &Pool{
 		numWorker: runtime.NumCPU(),

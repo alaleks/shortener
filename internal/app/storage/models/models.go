@@ -8,13 +8,13 @@ import (
 	"gorm.io/gorm"
 )
 
-// Users view model of users
+// Users represents the data model of a specific user.
 type Users struct {
 	CreatedAt time.Time `gorm:"default:NOW()"`
 	UID       uint      `gorm:"primaryKey;autoIncrement;unique"`
 }
 
-// Urls representation model for short URL.
+// Urls represents the data model of a specific shortened URL.
 type Urls struct {
 	CreatedAt     time.Time `gorm:"default:NOW()"`
 	ShortUID      string    `gorm:"primaryKey"`
@@ -25,7 +25,7 @@ type Urls struct {
 	Removed       bool
 }
 
-// Migrate starts auto-migration of models.
+// Migrate starts auto-migration of models in database.
 func Migrate(sqlDB *gorm.DB) error {
 	err := sqlDB.AutoMigrate(&Users{}, &Urls{})
 	if err != nil {

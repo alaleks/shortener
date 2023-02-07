@@ -29,7 +29,7 @@ type DB struct {
 	mu   sync.RWMutex
 }
 
-// NewDB creates a new DB instance.
+// NewDB creates a pointer of DB instance.
 func NewDB(conf config.Configurator) *DB {
 	return &DB{
 		conf: conf,
@@ -66,7 +66,7 @@ func (d *DB) Init() error {
 	return nil
 }
 
-// Close - closes the database connection.
+// Close performs closing the database connection.
 func (d *DB) Close() error {
 	sqlDB, err := d.db.DB()
 	if err != nil {
@@ -82,7 +82,7 @@ func (d *DB) Close() error {
 	return nil
 }
 
-// Ping - checks the database connection.
+// Ping performs checking the database connection.
 func (d *DB) Ping() error {
 	if d.db == nil {
 		return ErrDBConnection
@@ -110,7 +110,7 @@ func pingDB(sqlDB *sql.DB) error {
 	return nil
 }
 
-// Add - adding URL to the DB.
+// AddOld (Deprecated) performs adding URL to the DB.
 func (d *DB) AddOld(longURL, userID string) (string, error) {
 	userIDtoInt, err := strconv.Atoi(userID)
 
@@ -133,7 +133,7 @@ func (d *DB) AddOld(longURL, userID string) (string, error) {
 	return d.conf.GetBaseURL() + uri.ShortUID, nil
 }
 
-// Delete removing data from URLs by UID.
+// Delete performs removing data from shortens URLs by UID.
 func (d *DB) Delete(shortURL string) error {
 	res := d.db.Where("short_uid = ?", shortURL).
 		Delete(&models.Urls{})
@@ -141,7 +141,7 @@ func (d *DB) Delete(shortURL string) error {
 	return res.Error
 }
 
-// Add (optimize) - adding URL to the DB.
+// Add performs adding URL to the DB.
 func (d *DB) Add(longURL, userID string) (string, error) {
 	var uri models.Urls
 	res := d.db.Where("long_url = ?", longURL).FirstOrInit(&uri)
@@ -161,7 +161,7 @@ func (d *DB) Add(longURL, userID string) (string, error) {
 	return d.conf.GetBaseURL() + uri.ShortUID, nil
 }
 
-// AddBatch - adding URL to the DB (batch insert).
+// AddBatch performs adding URL to the DB (batch insert).
 func (d *DB) AddBatch(longURL, userID, corID string) string {
 	userIDtoInt, err := strconv.Atoi(userID)
 
@@ -183,7 +183,7 @@ func (d *DB) AddBatch(longURL, userID, corID string) string {
 	return d.conf.GetBaseURL() + uri.ShortUID
 }
 
-// Update changes short link usage statistics.
+// UpdateOld changes short link usage statistics.
 func (d *DB) UpdateOld(uid string) {
 	var url models.Urls
 
@@ -200,7 +200,7 @@ func (d *DB) UpdateOld(uid string) {
 	d.db.Save(&url)
 }
 
-// Update (optimize) changes short link usage statistics.
+// Update changes short link usage statistics.
 func (d *DB) Update(uid string) {
 	d.db.Model(&models.Urls{}).
 		Where("short_uid = ?", uid).
@@ -224,7 +224,7 @@ func (d *DB) GetURL(uid string) (string, error) {
 	return url.LongURL, nil
 }
 
-// Stat returns short link statistics by its id.
+// Stat returns short link uses statistics by its short UID.
 func (d *DB) Stat(uid string) (Statistics, error) {
 	var uri models.Urls
 
@@ -244,7 +244,7 @@ func (d *DB) Stat(uid string) (Statistics, error) {
 	return stat, nil
 }
 
-// Create - add new user in DefaultStorage.
+// Create performs adding new user in DB.
 func (d *DB) Create() uint {
 	user := models.Users{}
 	d.db.Create(&user)
@@ -260,7 +260,7 @@ func getUrlsUser(db *gorm.DB, uid uint) []models.Urls {
 	return urls
 }
 
-// GetUrlsUser (optimize) - getting shorts URLs from DB for current user.
+// GetUrlsUser performs getting shorts URLs from DB for current user.
 func (d *DB) GetUrlsUser(userID string) ([]struct {
 	ShortUID string `json:"short_url"`
 	LongURL  string `json:"original_url"`
@@ -289,7 +289,7 @@ func (d *DB) GetUrlsUser(userID string) ([]struct {
 	return urls, nil
 }
 
-// GetUrlsUser - getting shorts URLs from DB for current user.
+// GetUrlsUserOld (Deprecated) performs getting shorts URLs from DB for current user.
 func (d *DB) GetUrlsUserOld(userID string) ([]struct {
 	ShortUID string `json:"short_url"`
 	LongURL  string `json:"original_url"`

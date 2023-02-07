@@ -14,10 +14,10 @@ const (
 	prefixWWW   = "www."
 )
 
-// ErrInvalidURL typical error when validating URL.
+// ErrInvalidURL is an indicator that the invalid URL.
 var ErrInvalidURL = errors.New("invalid url")
 
-// Generate uid string (letters English Alphabet).
+// Generate uid uses letters English Alphabet.
 func GenUID(size int) string {
 	abc := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	buf := make([]byte, uint(size))
@@ -45,7 +45,7 @@ func randomizer(buf []byte) {
 	}
 }
 
-// IsURL (Deprecated) checks if a string is a URL.
+// IsURLOld (Deprecated) checks if a string is a URL.
 func IsURLOld(uri string) error {
 	switch {
 	case strings.HasPrefix(uri, "https://") && strings.TrimPrefix(uri, "https://") != "",
@@ -57,7 +57,8 @@ func IsURLOld(uri string) error {
 	}
 }
 
-// IsURL checks if a string is a URL.
+// IsURL checks if a string is a URL and
+// returns true if the string is a valid URL.
 func IsURL(uri string) error {
 	switch {
 	case strings.HasPrefix(uri, prefixHTTPS) && uri != prefixHTTPS:

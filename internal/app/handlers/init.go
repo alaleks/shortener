@@ -50,7 +50,7 @@ type OutShortenBatch struct {
 	Err      string `json:"error,omitempty"`
 }
 
-// New - initializes handlers.
+// New returns a pointer of struct Handlers.
 func New(conf config.Configurator, logger *logger.AppLogger) *Handlers {
 	handlers := Handlers{
 		Storage: storage.InitStore(conf, logger),

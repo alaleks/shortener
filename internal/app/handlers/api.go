@@ -14,6 +14,8 @@ import (
 )
 
 // ShortenURLAPI implements URL shortening.
+//
+// The handler returns an abbreviated URL in the response body.
 // POST /api/shorten, JSON: {"url":"http://github.com/alaleks/shortener"}.
 func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) {
 	var (
@@ -71,6 +73,7 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 }
 
 // GetStatAPI implements getting statistics on the use of a short URL.
+//
 // Example: GET /api/{uid}/statistics
 func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 	var (
@@ -106,7 +109,10 @@ func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// GetUsersURL returns all user shortened URLs.
+// GetUsersURL returns all shortened URLs for current user.
+//
+// If the user is not defined or don`t has shortens urls,
+// the response code 204 is returned.
 // GET /api/user/urls
 func (h *Handlers) GetUsersURL(writer http.ResponseWriter, req *http.Request) {
 	var buffer bytes.Buffer
@@ -140,6 +146,7 @@ func (h *Handlers) GetUsersURL(writer http.ResponseWriter, req *http.Request) {
 }
 
 // ShortenURLBatch implements url batch shortening.
+//
 // POST /api/shorten/batch
 // JSON: [{"original_url":"http://github.com/alaleks/shortener", "correlation_id":1}]
 func (h *Handlers) ShortenURLBatch(writer http.ResponseWriter, req *http.Request) {
@@ -191,8 +198,10 @@ func (h *Handlers) ShortenURLBatch(writer http.ResponseWriter, req *http.Request
 	}
 }
 
-// ShortenDelete (without Worker Pool) implements
-// the ability to delete user shortened URLs.
+// ShortenDelete performs deletion all shortened URLs
+// passed in the body request for current user.
+//
+// This handler does not use a pool.
 // DELETE /api/user/urls
 func (h *Handlers) ShortenDelete(writer http.ResponseWriter, req *http.Request) {
 	var (
@@ -219,8 +228,10 @@ func (h *Handlers) ShortenDelete(writer http.ResponseWriter, req *http.Request) 
 	writer.WriteHeader(http.StatusAccepted)
 }
 
-// ShortenDelete (with Worker Pool) implements
-// the ability to delete user shortened URLs.
+// ShortenDeletePool performs deletion all shortened URLs
+// passed in the body request for current user.
+//
+// This handler use a pool.
 // DELETE /api/user/urls
 func (h *Handlers) ShortenDeletePool(writer http.ResponseWriter, req *http.Request) {
 	var data struct {

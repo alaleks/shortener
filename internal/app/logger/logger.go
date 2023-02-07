@@ -16,14 +16,14 @@ type AppLogger struct {
 	LZ *zap.SugaredLogger
 }
 
-// Write method that implements the interface io.Writer.
+// Write implements io.Writer.
 func (a *AppLogger) Write(b []byte) (n int, err error) {
 	a.LZ.Errorw(string(b))
 
 	return len(b), nil
 }
 
-// NewLogger initializing a new logger
+// NewLogger returns a pointer of struct for app logging.
 func NewLogger() *AppLogger {
 	config := zap.NewProductionEncoderConfig()
 	config.EncodeTime = zapcore.ISO8601TimeEncoder
@@ -31,7 +31,7 @@ func NewLogger() *AppLogger {
 	fileEncoder := zapcore.NewJSONEncoder(config)
 	logFile, err := os.OpenFile("log.json",
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY, permFile)
-	// если ошибка пишем в консоль
+	// if an error is written to the console
 	if err != nil {
 		config := zap.NewProductionConfig()
 		config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder

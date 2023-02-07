@@ -8,7 +8,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// Create - registers application routers
+// Create registers application routers.
+// This functions returns http.Handler interface.
 func Create(handler *handlers.Handlers) http.Handler {
 	mux := mux.NewRouter()
 	mux.HandleFunc("/", handler.ShortenURL).Methods(http.MethodPost)

@@ -28,7 +28,7 @@ type (
 	}
 )
 
-// NewDefault creates a new default storage.
+// NewDefault creates a pointer of DefaultStorage.
 func NewDefault(conf config.Configurator) *DefaultStorage {
 	return &DefaultStorage{
 		urls:  make(map[string]*URLElement),
@@ -38,7 +38,7 @@ func NewDefault(conf config.Configurator) *DefaultStorage {
 	}
 }
 
-// Add - adds data to the storage.
+// Add performs adding URL to the default storage.
 func (ds *DefaultStorage) Add(longURL, userID string) (string, error) {
 	if !strings.HasPrefix(longURL, "http") {
 		longURL = "http://" + longURL
@@ -67,13 +67,13 @@ func (ds *DefaultStorage) Add(longURL, userID string) (string, error) {
 	return ds.conf.GetBaseURL() + uid, nil
 }
 
-// AddBatch - adds data to storage when batch processing.
+// AddBatch performs adding data to storage when batch processing.
 func (ds *DefaultStorage) AddBatch(longURL, userID, corID string) string {
 	if !strings.HasPrefix(longURL, "http") {
 		longURL = "http://" + longURL
 	}
 
-	// генерируем id
+	// Generate id.
 	uid := service.GenUID(ds.conf.GetSizeUID())
 
 	element := &URLElement{
@@ -97,7 +97,7 @@ func (ds *DefaultStorage) AddBatch(longURL, userID, corID string) string {
 	return ds.conf.GetBaseURL() + uid
 }
 
-// GetURL returns the original url by its id.
+// GetURL returns the original url by its short UID.
 func (ds *DefaultStorage) GetURL(uid string) (string, error) {
 	ds.mu.RLock()
 	uri, check := ds.urls[uid]
@@ -114,7 +114,7 @@ func (ds *DefaultStorage) GetURL(uid string) (string, error) {
 	return uri.LongURL, nil
 }
 
-// Update changes short link usage statistics.
+// Update perfoms changing short link usage statistics.
 func (ds *DefaultStorage) Update(uid string) {
 	ds.mu.Lock()
 	defer ds.mu.Unlock()

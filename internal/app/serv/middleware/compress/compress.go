@@ -16,7 +16,7 @@ type writerGzip struct {
 	http.ResponseWriter
 }
 
-// Write method that implements the interface io.Writer.
+// Write implements io.Writer.
 func (w writerGzip) Write(b []byte) (int, error) {
 	n, err := w.Writer.Write(b)
 	if err != nil {
@@ -31,7 +31,7 @@ type readerCloserGzip struct {
 	io.Closer
 }
 
-// Close method that implements the interface io.Closer.
+// Close implements io.Closer.
 func (r readerCloserGzip) Close() error {
 	if err := r.Closer.Close(); err != nil {
 		return fmt.Errorf("failed readerCloserGzip: %w", err)
@@ -40,8 +40,8 @@ func (r readerCloserGzip) Close() error {
 	return nil
 }
 
-// Compression compresses the server response if the client supports
-// gzip reading and the content type is suitable for efficient compression
+// Compression perfoms the server response compress in gzip if the client supports
+// gzip reading and the content type is suitable for efficient compression.
 func Compression(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
 		if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
@@ -65,7 +65,7 @@ func Compression(handler http.Handler) http.Handler {
 	})
 }
 
-// CheckBeforeCompression (Deprecated) checks the type of the content to be compressed.
+// CheckBeforeCompressionOld (Deprecated) checks the type of the content to be compressed.
 func CheckBeforeCompressionOld(contentType string) bool {
 	correctTypes := [...]string{
 		"text/css",
@@ -90,7 +90,8 @@ func CheckBeforeCompressionOld(contentType string) bool {
 	return false
 }
 
-// CheckBeforeCompression checks the type of the content to be compressed.
+// CheckBeforeCompression checks the type of the content to be compressed and
+// returns true if content suitable for compression.
 func CheckBeforeCompression(contentType string) bool {
 	correctTypes := [...]string{
 		"text/css",
@@ -115,8 +116,8 @@ func CheckBeforeCompression(contentType string) bool {
 	return false
 }
 
-// Unpacking implements unpacking of a gzip-compressed request.
-func Unpacking(handler http.Handler) http.Handler {
+// Decompression perfoms the request decompress from gzip.
+func Decompression(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
 		switch req.Header.Get("Content-Encoding") {
 		case "gzip":

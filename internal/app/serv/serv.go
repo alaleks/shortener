@@ -45,7 +45,7 @@ func New() *AppServer {
 	)
 
 	server := &http.Server{
-		Handler: middleware.New(compress.Compression, compress.Unpacking, auth.Authorization).
+		Handler: middleware.New(compress.Compression, compress.Decompression, auth.Authorization).
 			Configure(routers),
 		ReadTimeout:       defaultTimeout,
 		WriteTimeout:      defaultTimeout,

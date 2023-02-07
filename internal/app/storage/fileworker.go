@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// Close method that saves data to the file storage and closes the file.
+// Close perfoms saving data to the file storage and closes its.
 func (ds *DefaultStorage) Close() error {
 	if ds.conf.GetFileStoragePath() == "" {
 		return nil
@@ -46,7 +46,7 @@ func (ds *DefaultStorage) Close() error {
 	return nil
 }
 
-// Init method that initializes the file storage.
+// Init performs that initializes the file storage.
 func (ds *DefaultStorage) Init() error {
 	if ds.conf.GetFileStoragePath() == "" {
 		return nil
@@ -72,7 +72,7 @@ func (ds *DefaultStorage) Init() error {
 	return nil
 }
 
-// Ping - stub method for interface implementation Storage.
+// Ping is a stub method for interface implementation Storage.
 func (ds *DefaultStorage) Ping() error {
 	return nil
 }

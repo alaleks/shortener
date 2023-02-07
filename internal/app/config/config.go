@@ -1,4 +1,5 @@
-// The config package implements the ability to configure an application.
+// Package config contains configuration for application
+// and functions for its settings.
 package config
 
 import (
@@ -13,7 +14,8 @@ const (
 	defaultSizeUID = 5
 )
 
-// Configurator interface including Recipient and Tuner interfaces.
+// Configurator interface is used for application settings
+// by combining interfaces Recipient and Tuner interfaces.
 type Configurator interface {
 	Recipient
 	Tuner
@@ -35,18 +37,26 @@ type Tuner interface {
 	DefineOptionsFlags([]string)
 }
 
-// AppConfig structure that contains the app's settings settings.
+// AppConfig struct with data for configuring the application.
 type AppConfig struct {
-	serverAddr      string
-	baseURL         string
+	// servAddr is the address for server run.
+	serverAddr string
+	// baseURL is the URL app.
+	baseURL string
+	// fileStoragePath is the path for filestorage.
 	fileStoragePath string
-	dsn             string
-	secretKey       []byte
-	sizeUID         int
+	// dsn is the database connection string.
+	dsn string
+	// secretKey is designed for encryption and decryption of authorization data.
+	secretKey []byte
+	// sizeUID sets the size of the short URL ID.
+	sizeUID int
 }
 
 // The Options structure contains application configuration
 // launch options with both environment variables and flags.
+// If Env and Flag are set to true, the configuration
+// will give priority to the flags.
 type Options struct {
 	Env  bool
 	Flag bool
@@ -60,7 +70,7 @@ type confFlags struct {
 	sizeUID         *string
 }
 
-// New implements initialize settings.
+// New returns a pointer of struct that implements the Configurator interface.
 func New(opt Options) *AppConfig {
 	appConf := AppConfig{
 		serverAddr:      "localhost:8080",
@@ -82,7 +92,7 @@ func New(opt Options) *AppConfig {
 	return &appConf
 }
 
-// GetServAddr return host for run server.
+// GetServAddr returns host for run server.
 func (a *AppConfig) GetServAddr() string {
 	return a.serverAddr
 }
@@ -92,22 +102,23 @@ func (a *AppConfig) GetBaseURL() string {
 	return a.baseURL
 }
 
-// GetFileStoragePath return Path for Filestorage.
+// GetFileStoragePath returns path for filestorage.
 func (a *AppConfig) GetFileStoragePath() string {
 	return a.fileStoragePath
 }
 
-// GetSecretKey return Secret Key for encrypt/decrypt.
+// GetSecretKey returns secret key
+// for encryption and decryption of authorization data.
 func (a *AppConfig) GetSecretKey() []byte {
 	return a.secretKey
 }
 
-// GetDSN return Data source name for Database.
+// GetDSN returns the database connection string.
 func (a *AppConfig) GetDSN() string {
 	return a.dsn
 }
 
-// GetSizeUID return size for create UID.
+// GetSizeUID return the size of the short URL ID.
 func (a *AppConfig) GetSizeUID() int {
 	return a.sizeUID
 }
@@ -139,7 +150,7 @@ func (a *AppConfig) DefineOptionsEnv() {
 		}
 	}
 
-	// проверяем корректность опций
+	// Сheck if the options are correct.
 	a.checkOptions()
 }
 
@@ -175,7 +186,7 @@ func (a *AppConfig) DefineOptionsFlags(args []string) {
 		}
 	}
 
-	// проверяем корректность опций
+	// Сheck if the options are correct.
 	a.checkOptions()
 }
 
@@ -201,9 +212,9 @@ func parseFlags(args []string) (*confFlags, error) {
 func (a *AppConfig) checkOptions() {
 	httpPrefix := "http://"
 
-	// проверка адреса сервера, должен быть указан порт
+	// Check server address, port must be specified.
 	if !strings.Contains(a.serverAddr, ":") {
-		// если порт не указан, то добавляем 8080
+		// If the port is not specified, then add the default value :8080.
 		a.serverAddr += ":8080"
 	}
 
