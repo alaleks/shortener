@@ -51,9 +51,7 @@ func TestShortenURL(t *testing.T) {
 			res := w.Result()
 
 			if res != nil {
-				defer func() {
-					_ = res.Body.Close()
-				}()
+				defer res.Body.Close()
 			}
 			resBody, _ := io.ReadAll(res.Body)
 			templateShortURL := req.URL.Scheme + "://" + req.URL.Host + "/#uids"
@@ -114,9 +112,7 @@ func TestParseShortURL(t *testing.T) {
 			res := w.Result()
 
 			if res != nil {
-				defer func() {
-					_ = res.Body.Close()
-				}()
+				defer res.Body.Close()
 			}
 
 			// проверка возвращаемого кода ответа

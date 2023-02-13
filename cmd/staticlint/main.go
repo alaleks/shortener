@@ -7,7 +7,7 @@ import (
 
 	"github.com/alaleks/shortener/pkg/checkosexit"
 	"github.com/breml/bidichk/pkg/bidichk"
-	"github.com/kisielk/errcheck/errcheck"
+	"github.com/nishanths/exhaustive"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/multichecker"
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
@@ -127,7 +127,7 @@ func main() {
 	// unusedresult check for unused results of calls to some functions
 	// unusedwrite  checks for unused writes
 	// usesgenerics detect whether a package uses generics features
-	// errcheck     checks for unchecked errors in go programs.
+	// exhaustive   checks exhaustiveness of switch statements of enum-like constants in Go source code.
 	// bidichk      finds dangerous unicode character sequences in Go source files.
 	// checkosexit  finds all directs calls os.Exit in function main of package main.
 	mylinters := []*analysis.Analyzer{
@@ -173,7 +173,7 @@ func main() {
 		unusedresult.Analyzer,
 		unusedwrite.Analyzer,
 		usesgenerics.Analyzer,
-		errcheck.Analyzer,
+		exhaustive.Analyzer,
 		bidichk.NewAnalyzer(),
 		checkosexit.Analyzer,
 	}
