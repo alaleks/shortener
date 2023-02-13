@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"database/sql"
 	"fmt"
 	"strconv"
 	"sync"
@@ -96,14 +95,6 @@ func (d *DB) Ping() error {
 	err = sqlDB.Ping()
 
 	if err != nil {
-		return fmt.Errorf("ping db error: %w", err)
-	}
-
-	return nil
-}
-
-func pingDB(sqlDB *sql.DB) error {
-	if err := sqlDB.Ping(); err != nil {
 		return fmt.Errorf("ping db error: %w", err)
 	}
 

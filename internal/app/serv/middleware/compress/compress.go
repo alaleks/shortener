@@ -59,7 +59,9 @@ func Compression(handler http.Handler) http.Handler {
 
 		writer.Header().Set("Content-Encoding", "gzip")
 		gz := gzip.NewWriter(writer)
-		defer gz.Close()
+		defer func() {
+			_ = gz.Close()
+		}()
 		gzw := writerGzip{Writer: gz, ResponseWriter: writer}
 		handler.ServeHTTP(gzw, req)
 	})
@@ -136,7 +138,9 @@ func Decompression(handler http.Handler) http.Handler {
 			}
 
 			if reader != nil {
-				defer reader.Close()
+				defer func() {
+					_ = reader.Close()
+				}()
 			}
 
 			req.Body = readerCloserGzip{

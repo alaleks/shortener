@@ -9,9 +9,6 @@ import (
 	"github.com/alaleks/shortener/internal/app/storage"
 )
 
-func InitDB() {
-}
-
 // db
 func BenchmarkUpdate(b *testing.B) {
 	b.StopTimer()

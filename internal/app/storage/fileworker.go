@@ -21,19 +21,21 @@ func (ds *DefaultStorage) Close() error {
 	}
 
 	if file != nil {
-		defer file.Close()
+		defer func() {
+			_ = file.Close()
+		}()
 	}
 
 	buf := new(bytes.Buffer)
 	encoder := gob.NewEncoder(buf)
 
-	if err := encoder.Encode(ds.urls); err != nil {
+	if err = encoder.Encode(ds.urls); err != nil {
 		return fmt.Errorf("failed encode data for file storage: %w", err)
 	}
 
 	writer := bufio.NewWriter(file)
 
-	if _, err := writer.Write(buf.Bytes()); err != nil {
+	if _, err = writer.Write(buf.Bytes()); err != nil {
 		return fmt.Errorf("failed write data to buffer: %w", err)
 	}
 
@@ -58,7 +60,9 @@ func (ds *DefaultStorage) Init() error {
 	}
 
 	if file != nil {
-		defer file.Close()
+		defer func() {
+			_ = file.Close()
+		}()
 	}
 
 	decoder := gob.NewDecoder(file)

@@ -12,7 +12,11 @@ import (
 
 func TestPool(t *testing.T) {
 	t.Parallel()
-	defer os.Remove("log.json")
+
+	defer func() {
+		_ = os.Remove("log.json")
+	}()
+
 	count := 100
 	var test []int
 
@@ -40,7 +44,10 @@ func TestPool(t *testing.T) {
 }
 
 func BenchmarkPool(b *testing.B) {
-	defer os.Remove("log.json")
+	defer func() {
+		_ = os.Remove("log.json")
+	}()
+
 	logger := logger.NewLogger()
 	pool := pool.Init(logger)
 	go pool.Run()

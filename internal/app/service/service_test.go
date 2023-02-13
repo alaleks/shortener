@@ -11,16 +11,16 @@ func TestIsURL(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
+		err  error
 		name string
 		uri  string
-		err  error
 	}{
-		{"url c https", "https://github.com/alaleks/shortener", nil},
-		{"url c http", "http://github.com/alaleks/shortener", nil},
-		{"url c www", "www.github.com/alaleks/shortener", nil},
-		{"url без протокола", "github.com/alaleks/shortener", service.ErrInvalidURL},
-		{"url c ошибкой в протоколе", "htts://github.com/alaleks/shortener", service.ErrInvalidURL},
-		{"url c протолом и пустым адресом", "https://", service.ErrInvalidURL},
+		{name: "url c https", uri: "https://github.com/alaleks/shortener", err: nil},
+		{name: "url c http", uri: "http://github.com/alaleks/shortener", err: nil},
+		{name: "url c www", uri: "www.github.com/alaleks/shortener", err: nil},
+		{name: "url без протокола", uri: "github.com/alaleks/shortener", err: service.ErrInvalidURL},
+		{name: "url c ошибкой в протоколе", uri: "htts://github.com/alaleks/shortener", err: service.ErrInvalidURL},
+		{name: "url c протолом и пустым адресом", uri: "https://", err: service.ErrInvalidURL},
 	}
 	for _, v := range tests {
 		item := v

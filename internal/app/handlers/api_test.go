@@ -57,7 +57,9 @@ func TestShortenURLAPI(t *testing.T) {
 			res := w.Result()
 
 			if res != nil {
-				defer res.Body.Close()
+				defer func() {
+					_ = res.Body.Close()
+				}()
 			}
 			resBody, _ := io.ReadAll(res.Body)
 
@@ -122,7 +124,9 @@ func TestGetStatAPI(t *testing.T) {
 			res := w.Result()
 
 			if res != nil {
-				defer res.Body.Close()
+				defer func() {
+					_ = res.Body.Close()
+				}()
 			}
 
 			// проверка возвращаемого кода
@@ -162,7 +166,9 @@ func TestSetEnv(t *testing.T) {
 	res := testRec.Result()
 
 	if res != nil {
-		res.Body.Close()
+		defer func() {
+			_ = res.Body.Close()
+		}()
 	}
 
 	resBody, _ := io.ReadAll(res.Body)
@@ -224,7 +230,9 @@ func TestSetFlag(t *testing.T) {
 	res := testRec.Result()
 
 	if res != nil {
-		res.Body.Close()
+		defer func() {
+			_ = res.Body.Close()
+		}()
 	}
 
 	resBody, _ := io.ReadAll(res.Body)
@@ -294,7 +302,9 @@ func TestCompress(t *testing.T) {
 			h.ServeHTTP(testRec, req)
 			res := testRec.Result()
 			if res != nil {
-				defer res.Body.Close()
+				defer func() {
+					_ = res.Body.Close()
+				}()
 			}
 
 			if item.contentEncoding != res.Header.Get("Content-Encoding") {
@@ -350,7 +360,9 @@ func TestGetUsersURL(t *testing.T) {
 				handler2.ServeHTTP(testRec2, req2)
 				res2 := testRec2.Result()
 				if res2.Body != nil {
-					defer res2.Body.Close()
+					defer func() {
+						_ = res2.Body.Close()
+					}()
 				}
 				http.SetCookie(testRec, res2.Cookies()[0])
 				req.Header = http.Header{"Cookie": testRec2.Header()["Set-Cookie"]}
@@ -365,7 +377,9 @@ func TestGetUsersURL(t *testing.T) {
 				handler2.ServeHTTP(testRec2, req2)
 				res2 := testRec2.Result()
 				if res2.Body != nil {
-					defer res2.Body.Close()
+					defer func() {
+						_ = res2.Body.Close()
+					}()
 				}
 				cookie := res2.Cookies()[0]
 				cookie.Value += "wrong"
@@ -376,7 +390,9 @@ func TestGetUsersURL(t *testing.T) {
 			handler.ServeHTTP(testRec, req)
 			res := testRec.Result()
 			if res.Body != nil {
-				defer res.Body.Close()
+				defer func() {
+					_ = res.Body.Close()
+				}()
 			}
 			if res.StatusCode != item.code {
 				t.Errorf("status code should be %d but received %d", item.code, res.StatusCode)

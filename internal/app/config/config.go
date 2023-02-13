@@ -193,20 +193,20 @@ func (a *AppConfig) DefineOptionsFlags(args []string) {
 func parseFlags(args []string) (*confFlags, error) {
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 
-	var confFlags confFlags
+	var configFlags confFlags
 
-	confFlags.serverAddr = flags.String("a", "", "SERVER_ADDRESS")
-	confFlags.baseURL = flags.String("b", "", "BASE_URL")
-	confFlags.fileStoragePath = flags.String("f", "", "FILE_STORAGE_PATH")
-	confFlags.dsn = flags.String("d", "", "DATABASE_DSN")
-	confFlags.sizeUID = flags.String("s", "", "SIZE_UID")
+	configFlags.serverAddr = flags.String("a", "", "SERVER_ADDRESS")
+	configFlags.baseURL = flags.String("b", "", "BASE_URL")
+	configFlags.fileStoragePath = flags.String("f", "", "FILE_STORAGE_PATH")
+	configFlags.dsn = flags.String("d", "", "DATABASE_DSN")
+	configFlags.sizeUID = flags.String("s", "", "SIZE_UID")
 
 	err := flags.Parse(args[1:])
 	if err != nil {
 		err = fmt.Errorf("failed parse flags %w", flags.Parse(args[1:]))
 	}
 
-	return &confFlags, err
+	return &configFlags, err
 }
 
 func (a *AppConfig) checkOptions() {
