@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -12,21 +13,19 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// ShortenURLAPI implements URL shortening.
+//
+// The handler returns an abbreviated URL in the response body.
+// POST /api/shorten, JSON: {"url":"http://github.com/alaleks/shortener"}.
 func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) {
 	var (
-		input  InputShorten
-		output OutputShorten
-		userID string
+		input      InputShorten
+		output     OutputShorten
+		userID     string
+		httpStatus = http.StatusCreated
 	)
 
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
-		http.Error(writer, err.Error(), http.StatusBadRequest)
-
-		return
-	}
-
-	if err := json.Unmarshal(body, &input); err != nil {
+	if err := json.NewDecoder(req.Body).Decode(&input); err != nil {
 		output.Err = err.Error()
 	}
 
@@ -41,38 +40,41 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 	writer.Header().Set("Content-Type", "application/json")
 
 	shortURL, err := h.Storage.Store.Add(input.URL, userID)
-
 	if err != nil {
 		if errors.Is(err, storage.ErrAlreadyExists) {
-			writer.WriteHeader(http.StatusConflict)
+			httpStatus = http.StatusConflict
 		} else {
 			writer.WriteHeader(http.StatusInternalServerError)
 
 			return
 		}
-	} else {
-		writer.WriteHeader(http.StatusCreated)
 	}
+
+	writer.WriteHeader(httpStatus)
 
 	if output.Err == "" {
 		output.Success = true
 		output.Result = shortURL
 	}
 
-	res, err := json.Marshal(output)
-	if err != nil {
+	var buf bytes.Buffer
+
+	if err := json.NewEncoder(&buf).Encode(output); err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	if _, err := writer.Write(res); err != nil {
+	if _, err := writer.Write(buf.Bytes()); err != nil {
 		http.Error(writer, ErrInternalError.Error(), http.StatusBadRequest)
 
 		return
 	}
 }
 
+// GetStatAPI implements getting statistics on the use of a short URL.
+//
+// Example: GET /api/{uid}/statistics
 func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 	var (
 		buffer bytes.Buffer
@@ -107,6 +109,11 @@ func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// GetUsersURL returns all shortened URLs for current user.
+//
+// If the user is not defined or don`t has shortens urls,
+// the response code 204 is returned.
+// GET /api/user/urls
 func (h *Handlers) GetUsersURL(writer http.ResponseWriter, req *http.Request) {
 	var buffer bytes.Buffer
 
@@ -138,6 +145,10 @@ func (h *Handlers) GetUsersURL(writer http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// ShortenURLBatch implements url batch shortening.
+//
+// POST /api/shorten/batch
+// JSON: [{"original_url":"http://github.com/alaleks/shortener", "correlation_id":1}]
 func (h *Handlers) ShortenURLBatch(writer http.ResponseWriter, req *http.Request) {
 	var (
 		input  []InShortenBatch
@@ -163,7 +174,7 @@ func (h *Handlers) ShortenURLBatch(writer http.ResponseWriter, req *http.Request
 		return
 	}
 
-	output, err := h.ProcessingURLBatch(userID, input)
+	output, err := h.processingURLBatch(userID, input)
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
@@ -185,4 +196,77 @@ func (h *Handlers) ShortenURLBatch(writer http.ResponseWriter, req *http.Request
 
 		return
 	}
+}
+
+// ShortenDelete performs deletion all shortened URLs
+// passed in the body request for current user.
+//
+// This handler does not use a pool.
+// DELETE /api/user/urls
+func (h *Handlers) ShortenDelete(writer http.ResponseWriter, req *http.Request) {
+	var (
+		userID         string
+		shortUIDForDel []string
+	)
+
+	if req.URL.User != nil {
+		userID = req.URL.User.Username()
+	}
+
+	if err := json.NewDecoder(req.Body).Decode(&shortUIDForDel); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	if err := h.Storage.Store.DelUrls(userID, checkShortUID(shortUIDForDel...)...); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	writer.WriteHeader(http.StatusAccepted)
+}
+
+// ShortenDeletePool performs deletion all shortened URLs
+// passed in the body request for current user.
+//
+// This handler use a pool.
+// DELETE /api/user/urls
+func (h *Handlers) ShortenDeletePool(writer http.ResponseWriter, req *http.Request) {
+	var data struct {
+		userID         string
+		shortUIDForDel []string
+	}
+
+	if req.URL.User != nil {
+		data.userID = req.URL.User.Username()
+	}
+
+	if err := json.NewDecoder(req.Body).Decode(&data.shortUIDForDel); err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	h.Storage.Pool.AddTask(data, func(data any) error {
+		dataRemoved, ok := data.(struct {
+			userID         string
+			shortUIDForDel []string
+		})
+
+		if !ok {
+			return storage.ErrInvalidData
+		}
+
+		err := h.Storage.Store.DelUrls(dataRemoved.userID,
+			checkShortUID(dataRemoved.shortUIDForDel...)...)
+		if err != nil {
+			return fmt.Errorf("deletion error: %w", err)
+		}
+
+		return nil
+	})
+
+	writer.WriteHeader(http.StatusAccepted)
 }

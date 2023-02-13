@@ -1,3 +1,4 @@
+// Package router registers application routers
 package router
 
 import (
@@ -7,6 +8,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// Create registers application routers.
+// This functions returns http.Handler interface.
 func Create(handler *handlers.Handlers) http.Handler {
 	mux := mux.NewRouter()
 	mux.HandleFunc("/", handler.ShortenURL).Methods(http.MethodPost)
@@ -16,6 +19,7 @@ func Create(handler *handlers.Handlers) http.Handler {
 	mux.HandleFunc("/api/{uid}/statistics", handler.GetStatAPI).Methods(http.MethodGet)
 	mux.HandleFunc("/api/user/urls", handler.GetUsersURL).Methods(http.MethodGet)
 	mux.HandleFunc("/api/shorten/batch", handler.ShortenURLBatch).Methods(http.MethodPost)
+	mux.HandleFunc("/api/user/urls", handler.ShortenDeletePool).Methods(http.MethodDelete)
 
 	return mux
 }

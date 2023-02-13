@@ -12,6 +12,7 @@ import (
 
 	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/handlers"
+	"github.com/alaleks/shortener/internal/app/logger"
 	"github.com/alaleks/shortener/internal/app/router"
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
 	"github.com/alaleks/shortener/internal/app/serv/middleware/auth"
@@ -24,8 +25,9 @@ const data = `{"url":"https://github.com/alaleks/shortener"}`
 func TestShortenURLAPI(t *testing.T) {
 	t.Parallel()
 	// данные для теста
-	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
-	testHandler := handlers.New(appConf)
+	appConf := config.New(config.Options{Env: false, Flag: false})
+	logger := logger.NewLogger()
+	testHandler := handlers.New(appConf, logger)
 
 	tests := []struct {
 		name    string
@@ -54,9 +56,7 @@ func TestShortenURLAPI(t *testing.T) {
 			h.ServeHTTP(w, req)
 			res := w.Result()
 
-			if res != nil {
-				defer res.Body.Close()
-			}
+			defer res.Body.Close()
 			resBody, _ := io.ReadAll(res.Body)
 
 			var dataFromRes struct {
@@ -77,8 +77,9 @@ func TestGetStatAPI(t *testing.T) {
 	t.Parallel()
 
 	// данные для теста
-	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
-	testHandler := handlers.New(appConf)
+	appConf := config.New(config.Options{Env: false, Flag: false})
+	logger := logger.NewLogger()
+	testHandler := handlers.New(appConf, logger)
 	// генерируем uid
 	longURL1 := "https://github.com/alaleks/shortener"
 	longURL2 := "https://yandex.ru/pogoda/krasnodar"
@@ -97,9 +98,9 @@ func TestGetStatAPI(t *testing.T) {
 
 	tests := []struct {
 		name    string
+		uriStat string
 		code    int
 		stat    uint
-		uriStat string
 	}{
 		{name: "стат uid #1", code: 200, stat: 1, uriStat: hostStat + uid1 + "/statistics"},
 		{name: "стат uid #2", code: 200, stat: 0, uriStat: hostStat + uid2 + "/statistics"},
@@ -147,8 +148,9 @@ func TestSetEnv(t *testing.T) {
 	t.Setenv("DATABASE_DSN", "")
 
 	// настройки для теста
-	appConf := config.New(config.Options{Env: true, Flag: false}, 5)
-	testHandler := handlers.New(appConf)
+	appConf := config.New(config.Options{Env: true, Flag: false})
+	logger := logger.NewLogger()
+	testHandler := handlers.New(appConf, logger)
 
 	// создаем запрос, рекордер, хэндлер, запускаем сервер
 	testRec := httptest.NewRecorder()
@@ -158,7 +160,7 @@ func TestSetEnv(t *testing.T) {
 	res := testRec.Result()
 
 	if res != nil {
-		res.Body.Close()
+		defer res.Body.Close()
 	}
 
 	resBody, _ := io.ReadAll(res.Body)
@@ -186,7 +188,7 @@ func TestSetEnv(t *testing.T) {
 	}
 
 	// сбрасываем карту и читаем файл
-	testHandler.Storage = storage.InitStore(appConf)
+	testHandler.Storage = storage.InitStore(appConf, logger)
 	_ = testHandler.Storage.Store.Close()
 
 	if _, err := testHandler.Storage.Store.GetURL(strings.Split(dataFromRes.Result, "/")[3]); err != nil {
@@ -202,14 +204,15 @@ func TestSetFlag(t *testing.T) {
 
 	// настройки для теста
 	options := config.Options{Env: true, Flag: true}
-	appConf := config.New(options, 5)
+	appConf := config.New(options)
 	argsTest := []string{
 		"TestFlags", "-a", "localhost:9093", "-b",
 		"http://localhost:9093/", "-f", "./storage",
 	}
 	appConf.DefineOptionsFlags(argsTest)
 
-	testHandler := handlers.New(appConf)
+	logger := logger.NewLogger()
+	testHandler := handlers.New(appConf, logger)
 
 	// создаем запрос, рекордер, хэндлер, запускаем сервер
 	testRec := httptest.NewRecorder()
@@ -219,7 +222,7 @@ func TestSetFlag(t *testing.T) {
 	res := testRec.Result()
 
 	if res != nil {
-		res.Body.Close()
+		defer res.Body.Close()
 	}
 
 	resBody, _ := io.ReadAll(res.Body)
@@ -247,7 +250,7 @@ func TestSetFlag(t *testing.T) {
 	}
 
 	// сбрасываеи карту и читаем файл
-	testHandler.Storage = storage.InitStore(appConf)
+	testHandler.Storage = storage.InitStore(appConf, logger)
 	_ = testHandler.Storage.Store.Close()
 
 	if _, err := testHandler.Storage.Store.GetURL(strings.Split(dataFromRes.Result, "/")[3]); err != nil {
@@ -261,8 +264,9 @@ func TestSetFlag(t *testing.T) {
 func TestCompress(t *testing.T) {
 	t.Parallel()
 	// данные для теста
-	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
-	testHandler := handlers.New(appConf)
+	appConf := config.New(config.Options{Env: false, Flag: false})
+	logger := logger.NewLogger()
+	testHandler := handlers.New(appConf, logger)
 
 	tests := []struct {
 		name            string
@@ -280,7 +284,7 @@ func TestCompress(t *testing.T) {
 
 			// создаем запрос, рекордер, хэндлер, запускаем сервер
 			testRec := httptest.NewRecorder()
-			h := middleware.New(compress.Compression, compress.Unpacking).
+			h := middleware.New(compress.Compression, compress.Decompression).
 				Configure(http.HandlerFunc(testHandler.ShortenURLAPI))
 			req := httptest.NewRequest(http.MethodPost, appConf.GetBaseURL(), bytes.NewBuffer([]byte(data)))
 			req.Header.Set("Content-Type", "application/json")
@@ -302,13 +306,14 @@ func TestCompress(t *testing.T) {
 func TestGetUsersURL(t *testing.T) {
 	t.Parallel()
 	// данные для теста
-	appConf := config.New(config.Options{Env: false, Flag: false}, 5)
-	testHandler := handlers.New(appConf)
+	appConf := config.New(config.Options{Env: false, Flag: false})
+	logger := logger.NewLogger()
+	testHandler := handlers.New(appConf, logger)
 	auth := auth.TurnOn(testHandler.Storage, appConf.GetSecretKey())
 	tests := []struct {
 		name string
-		code int
 		url  string
+		code int
 	}{
 		{
 			name: "проверка когда кука установлена и валидна", code: 200,
