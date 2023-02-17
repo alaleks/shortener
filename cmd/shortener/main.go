@@ -3,10 +3,9 @@ package main
 
 import (
 	"errors"
-	"io"
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
-	"os"
 
 	"github.com/alaleks/shortener/internal/app/serv"
 )
@@ -16,24 +15,24 @@ var buildDate string
 var buildCommit string
 
 func info() {
-	io.WriteString(os.Stdout, "Run application Shortener\n")
+	fmt.Printf("Run application Shortener\n")
 
 	if len(buildVersion) != 0 {
-		io.WriteString(os.Stdout, "Build version: "+buildVersion+"\n")
+		fmt.Printf("Build version: %s\n", buildVersion)
 	} else {
-		io.WriteString(os.Stdout, "Build version: N/A\n")
+		fmt.Printf("Build version: N/A\n")
 	}
 
 	if len(buildDate) != 0 {
-		io.WriteString(os.Stdout, "Build date: "+buildDate+"\n")
+		fmt.Printf("Build date: %s\n", buildDate)
 	} else {
-		io.WriteString(os.Stdout, "Build date: N/A\n")
+		fmt.Printf("Build date: N/A\n")
 	}
 
 	if len(buildCommit) != 0 {
-		io.WriteString(os.Stdout, "Build commit: "+buildCommit+"\n")
+		fmt.Printf("Build commit: %s\n", buildCommit)
 	} else {
-		io.WriteString(os.Stdout, "Build commit: N/A\n")
+		fmt.Printf("Build commit: N/A\n")
 	}
 }
 
