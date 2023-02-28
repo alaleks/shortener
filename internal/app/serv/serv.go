@@ -107,7 +107,7 @@ func (a *AppServer) turnOnTLS() {
 
 	a.server.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0)
 
-	http2.ConfigureServer(a.server, &http2.Server{})
+	_ = http2.ConfigureServer(a.server, &http2.Server{})
 }
 
 func catchSignal(appServer *AppServer) {

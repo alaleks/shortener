@@ -3,6 +3,7 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -48,12 +49,23 @@ type AppConfig struct {
 	fileStoragePath string
 	// dsn is the database connection string.
 	dsn string
+	// cfgFile is the path for configuration file.
+	cfgFile string
 	// secretKey is designed for encryption and decryption of authorization data.
 	secretKey []byte
 	// sizeUID sets the size of the short URL ID.
 	sizeUID int
 	// tls is used to enable TLS.
 	tls bool
+}
+
+// configJSON is the JSON structure for configuration.
+type configJSON struct {
+	ServerAddress   string `json:"server_address"`
+	BaseUrl         string `json:"base_url"`
+	FileStoragePath string `json:"file_storage_path"`
+	DSN             string `json:"database_dsn"`
+	EnableHTTPS     bool   `json:"enable_https"`
 }
 
 // The Options structure contains application configuration
@@ -72,6 +84,7 @@ type confFlags struct {
 	dsn             *string
 	sizeUID         *string
 	tls             *string
+	cfgFile         *string
 }
 
 // New returns a pointer of struct that implements the Configurator interface.
@@ -83,6 +96,7 @@ func New(opt Options) *AppConfig {
 		dsn:             "",
 		secretKey:       []byte("9EE3BF9351DFCFF24CD6DA2C4D963"),
 		sizeUID:         defaultSizeUID,
+		tls:             false,
 	}
 
 	if opt.Env {
@@ -134,6 +148,12 @@ func (a *AppConfig) GetSizeUID() int {
 
 // DefineOptionsEnv implements application configuration using environment variables.
 func (a *AppConfig) DefineOptionsEnv() {
+	if cgfFile, ok := os.LookupEnv("CONFIG"); ok && cgfFile != "" {
+		a.cfgFile = cgfFile
+		// configure application using config file.
+		a.configureFile()
+	}
+
 	if servAddr, ok := os.LookupEnv("SERVER_ADDRESS"); ok && servAddr != "" {
 		a.serverAddr = servAddr
 	}
@@ -174,6 +194,12 @@ func (a *AppConfig) DefineOptionsFlags(args []string) {
 		return
 	}
 
+	if *confFlags.cfgFile != "" {
+		a.cfgFile = *confFlags.cfgFile
+		// configure application using config file.
+		a.configureFile()
+	}
+
 	if *confFlags.serverAddr != "" {
 		a.serverAddr = *confFlags.serverAddr
 	}
@@ -207,6 +233,28 @@ func (a *AppConfig) DefineOptionsFlags(args []string) {
 	a.checkOptions()
 }
 
+// configureFile performs file configuration from file configuration
+// in passed in field cfgFile.
+func (a *AppConfig) configureFile() {
+	file, err := os.ReadFile(a.cfgFile)
+	if err != nil {
+		return
+	}
+
+	var cfg configJSON
+
+	err = json.Unmarshal(file, &cfg)
+	if err != nil {
+		return
+	}
+
+	a.baseURL = cfg.BaseUrl
+	a.serverAddr = cfg.ServerAddress
+	a.fileStoragePath = cfg.FileStoragePath
+	a.dsn = cfg.DSN
+	a.tls = cfg.EnableHTTPS
+}
+
 func parseFlags(args []string) (*confFlags, error) {
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 
@@ -218,10 +266,20 @@ func parseFlags(args []string) (*confFlags, error) {
 	configFlags.dsn = flags.String("d", "", "DATABASE_DSN")
 	configFlags.sizeUID = flags.String("q", "", "SIZE_UID")
 	configFlags.tls = flags.String("s", "", "ENABLE_HTTPS")
+	// define configs flags
+	conf1 := flags.String("c", "", "CONFIG")
+	conf2 := flags.String("config", "", "CONFIG")
 
 	err := flags.Parse(args[1:])
 	if err != nil {
 		err = fmt.Errorf("failed parse flags %w", flags.Parse(args[1:]))
+	}
+
+	switch {
+	case *conf1 != "":
+		configFlags.cfgFile = conf1
+	case *conf2 != "":
+		configFlags.cfgFile = conf2
 	}
 
 	return &configFlags, err
