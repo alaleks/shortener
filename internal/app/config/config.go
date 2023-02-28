@@ -62,7 +62,7 @@ type AppConfig struct {
 // configJSON is the JSON structure for configuration.
 type configJSON struct {
 	ServerAddress   string `json:"server_address"`
-	BaseUrl         string `json:"base_url"`
+	BaseURL         string `json:"base_url"`
 	FileStoragePath string `json:"file_storage_path"`
 	DSN             string `json:"database_dsn"`
 	EnableHTTPS     bool   `json:"enable_https"`
@@ -248,7 +248,7 @@ func (a *AppConfig) configureFile() {
 		return
 	}
 
-	a.baseURL = cfg.BaseUrl
+	a.baseURL = cfg.BaseURL
 	a.serverAddr = cfg.ServerAddress
 	a.fileStoragePath = cfg.FileStoragePath
 	a.dsn = cfg.DSN
@@ -280,6 +280,8 @@ func parseFlags(args []string) (*confFlags, error) {
 		configFlags.cfgFile = conf1
 	case *conf2 != "":
 		configFlags.cfgFile = conf2
+	default:
+		configFlags.cfgFile = conf1
 	}
 
 	return &configFlags, err
