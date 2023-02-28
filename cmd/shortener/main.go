@@ -10,9 +10,11 @@ import (
 	"github.com/alaleks/shortener/internal/app/serv"
 )
 
-var buildVersion string
-var buildDate string
-var buildCommit string
+var (
+	buildVersion string
+	buildDate    string
+	buildCommit  string
+)
 
 func info() {
 	fmt.Printf("Run application Shortener\n")

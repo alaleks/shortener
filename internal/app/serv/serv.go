@@ -3,6 +3,7 @@ package serv
 
 import (
 	"context"
+	"crypto/tls"
 	"log"
 	"net/http"
 	"os"
@@ -17,6 +18,8 @@ import (
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
 	"github.com/alaleks/shortener/internal/app/serv/middleware/auth"
 	"github.com/alaleks/shortener/internal/app/serv/middleware/compress"
+	"golang.org/x/crypto/acme/autocert"
+	"golang.org/x/net/http2"
 )
 
 const (
@@ -73,7 +76,38 @@ func New() *AppServer {
 func Run(appServer *AppServer) error {
 	go catchSignal(appServer)
 
+	// turn on tls for https connections
+	if appServer.conf.EnableTLS() {
+		appServer.turnOnTLS()
+		return appServer.server.ListenAndServeTLS("", "")
+	}
+
 	return appServer.server.ListenAndServe()
+}
+
+func (a *AppServer) turnOnTLS() {
+	certManager := autocert.Manager{
+		Prompt:     autocert.AcceptTOS,
+		Cache:      autocert.DirCache("cert"),
+		HostPolicy: autocert.HostWhitelist(a.server.Addr),
+	}
+
+	a.server.TLSConfig = &tls.Config{
+		GetCertificate:           certManager.GetCertificate,
+		MinVersion:               tls.VersionTLS12,
+		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
+		PreferServerCipherSuites: true,
+		CipherSuites: []uint16{
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+		},
+	}
+
+	a.server.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0)
+
+	http2.ConfigureServer(a.server, &http2.Server{})
 }
 
 func catchSignal(appServer *AppServer) {

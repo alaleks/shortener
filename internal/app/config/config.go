@@ -29,6 +29,7 @@ type Recipient interface {
 	GetSecretKey() []byte
 	GetDSN() string
 	GetSizeUID() int
+	EnableTLS() bool
 }
 
 // Tuner interface implements methods for configuring tuning.
@@ -51,6 +52,8 @@ type AppConfig struct {
 	secretKey []byte
 	// sizeUID sets the size of the short URL ID.
 	sizeUID int
+	// tls is used to enable TLS.
+	tls bool
 }
 
 // The Options structure contains application configuration
@@ -68,6 +71,7 @@ type confFlags struct {
 	fileStoragePath *string
 	dsn             *string
 	sizeUID         *string
+	tls             *string
 }
 
 // New returns a pointer of struct that implements the Configurator interface.
@@ -118,6 +122,11 @@ func (a *AppConfig) GetDSN() string {
 	return a.dsn
 }
 
+// EnableTLS returns true if TLS is enabled in config.
+func (a *AppConfig) EnableTLS() bool {
+	return a.tls
+}
+
 // GetSizeUID return the size of the short URL ID.
 func (a *AppConfig) GetSizeUID() int {
 	return a.sizeUID
@@ -150,6 +159,10 @@ func (a *AppConfig) DefineOptionsEnv() {
 		}
 	}
 
+	if _, ok := os.LookupEnv("ENABLE_HTTPS"); ok {
+		a.tls = true
+	}
+
 	// Сheck if the options are correct.
 	a.checkOptions()
 }
@@ -179,6 +192,10 @@ func (a *AppConfig) DefineOptionsFlags(args []string) {
 		a.dsn = *confFlags.dsn
 	}
 
+	if *confFlags.tls != "" {
+		a.tls = true
+	}
+
 	if *confFlags.sizeUID != "" {
 		i, err := strconv.Atoi(*confFlags.sizeUID)
 		if err == nil && i > 3 {
@@ -199,7 +216,8 @@ func parseFlags(args []string) (*confFlags, error) {
 	configFlags.baseURL = flags.String("b", "", "BASE_URL")
 	configFlags.fileStoragePath = flags.String("f", "", "FILE_STORAGE_PATH")
 	configFlags.dsn = flags.String("d", "", "DATABASE_DSN")
-	configFlags.sizeUID = flags.String("s", "", "SIZE_UID")
+	configFlags.sizeUID = flags.String("q", "", "SIZE_UID")
+	configFlags.tls = flags.String("s", "", "ENABLE_HTTPS")
 
 	err := flags.Parse(args[1:])
 	if err != nil {
