@@ -110,6 +110,7 @@ func (a *AppServer) turnOnTLS() {
 	_ = http2.ConfigureServer(a.server, &http2.Server{})
 }
 
+// catchSignal will catch SIGINT, SIGHUP, SIGQUIT and SIGTERM and close the server.
 func catchSignal(appServer *AppServer) {
 	termSignals := make(chan os.Signal, 1)
 	reloadSignals := make(chan os.Signal, 1)
