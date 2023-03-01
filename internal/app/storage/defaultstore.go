@@ -73,7 +73,6 @@ func (ds *DefaultStorage) AddBatch(longURL, userID, corID string) string {
 		longURL = "http://" + longURL
 	}
 
-	// Generate id.
 	uid := service.GenUID(ds.conf.GetSizeUID())
 
 	element := &URLElement{
@@ -153,7 +152,7 @@ func (ds *DefaultStorage) DelUrls(userID string, shortsUID ...string) error {
 	}
 
 	// key -> shortID, value -> found in existing.
-	shortIDs := make(map[string]bool)
+	shortIDs := make(map[string]bool, len(shortsUID))
 
 	for _, shortID := range shortsUID {
 		shortIDs[shortID] = false
@@ -180,6 +179,45 @@ func (ds *DefaultStorage) DelUrls(userID string, shortsUID ...string) error {
 	for shortID := range shortIDs {
 		if uri, ok := ds.urls[shortID]; ok && !uri.Removed {
 			ds.urls[shortID].Removed = true
+		}
+	}
+	ds.mu.Unlock()
+
+	return nil
+}
+
+// DelUrlsOld marks as deleted urls added by a specific user.
+func (ds *DefaultStorage) DelUrlsOld(userID string, shortsUID ...string) error {
+	uid, err := strconv.Atoi(userID)
+	if err != nil {
+		return ErrUserIDNotValid
+	}
+
+	ds.mu.RLock()
+	if _, ok := ds.users[uint(uid)]; !ok {
+		ds.mu.RUnlock()
+
+		return ErrUserNotExists
+	}
+
+	var uidsToDel []string
+
+	for _, v := range shortsUID {
+		for _, shortID := range ds.users[uint(uid)] {
+			if shortID == v && !ds.urls[shortID].Removed {
+				uidsToDel = append(uidsToDel, v)
+
+				break
+			}
+		}
+	}
+
+	ds.mu.RUnlock()
+
+	ds.mu.Lock()
+	for _, v := range uidsToDel {
+		if _, ok := ds.urls[v]; ok {
+			ds.urls[v].Removed = true
 		}
 	}
 	ds.mu.Unlock()

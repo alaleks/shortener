@@ -34,7 +34,10 @@ func (ds *DefaultStorage) GetUrlsUser(userID string) ([]struct {
 			urls = append(urls, struct {
 				ShortUID string `json:"short_url"`
 				LongURL  string `json:"original_url"`
-			}{ShortUID: ds.conf.GetBaseURL() + shortUID, LongURL: originalURL})
+			}{
+				ShortUID: ds.conf.GetBaseURL() + shortUID,
+				LongURL:  originalURL,
+			})
 		}
 	}
 

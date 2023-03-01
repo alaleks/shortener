@@ -11,35 +11,6 @@ import (
 
 // db
 func BenchmarkUpdate(b *testing.B) {
-	b.StopTimer()
-	b.Setenv("DATABASE_DSN", "host=localhost user=shortener password=3BJ2zWGPbQps dbname=shortener port=5432")
-	conf := config.New(config.Options{Env: true})
-	db := storage.NewDB(conf)
-	err := db.Init()
-	if err != nil {
-		return
-	}
-
-	short, _ := db.Add("http://example.com/1", strconv.Itoa(1))
-	b.StartTimer()
-
-	b.Run("before optimize", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			db.UpdateOld(strings.Split(short, "/")[3])
-		}
-	})
-
-	b.Run("after optimize", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			db.Update(strings.Split(short, "/")[3])
-		}
-	})
-
-	_ = db.Delete(strings.Split(short, "/")[3])
-}
-
-func BenchmarkAdd(b *testing.B) {
-	b.StopTimer()
 	b.Setenv("DATABASE_DSN", "host=localhost user=shortener password=3BJ2zWGPbQps dbname=shortener port=5432")
 	conf := config.New(config.Options{Env: true})
 	db := storage.NewDB(conf)
@@ -49,36 +20,68 @@ func BenchmarkAdd(b *testing.B) {
 	}
 
 	var (
-		count int
-		uids  []string
+		shortURL = "http://example.com/1"
+		userID   = "1"
 	)
-	b.StartTimer()
+
+	short, _ := db.Add(shortURL, userID)
+	shortUID := strings.Split(short, "/")[3]
+
+	b.ResetTimer()
 
 	b.Run("before optimize", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			count++
-			shortURL, err := db.AddOld("http://example.com/"+strconv.Itoa(count),
-				strconv.Itoa(1))
-			if err == nil {
-				uids = append(uids, shortURL)
-			}
+			db.UpdateOld(shortUID)
 		}
 	})
 
 	b.Run("after optimize", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			shortURL, err := db.Add("http://example.com/"+strconv.Itoa(count),
-				strconv.Itoa(1))
-			if err == nil {
-				uids = append(uids, shortURL)
-			}
+			db.Update(shortUID)
 		}
 	})
 
 	b.StopTimer()
 
-	for _, v := range uids {
-		_ = db.Delete(strings.Split(v, "/")[3])
+	_ = db.Delete(strings.Split(short, "/")[3])
+}
+
+func BenchmarkAdd(b *testing.B) {
+	b.Setenv("DATABASE_DSN", "host=localhost user=shortener password=3BJ2zWGPbQps dbname=shortener port=5432")
+	conf := config.New(config.Options{Env: true})
+	db := storage.NewDB(conf)
+	err := db.Init()
+	if err != nil {
+		return
+	}
+
+	var (
+		urls   []string
+		userID = "1"
+	)
+
+	for i := 0; i < 2000; i++ {
+		urls = append(urls, "http://example.com/"+strconv.Itoa(i))
+	}
+
+	b.ResetTimer()
+
+	b.Run("before optimize", func(b *testing.B) {
+		for _, v := range urls[0:1000] {
+			_, _ = db.AddOld(v, userID)
+		}
+	})
+
+	b.Run("after optimize", func(b *testing.B) {
+		for _, v := range urls[1000:] {
+			_, _ = db.Add(v, userID)
+		}
+	})
+
+	b.StopTimer()
+
+	for _, v := range urls {
+		_ = db.DeleteByLongURL(v)
 	}
 }
 
@@ -101,6 +104,8 @@ func BenchmarkGetUrlsUser(b *testing.B) {
 		}
 	}
 
+	b.ResetTimer()
+
 	b.Run("before optimize", func(b *testing.B) {
 		_, _ = db.GetUrlsUserOld(strconv.Itoa(1))
 	})
@@ -108,6 +113,8 @@ func BenchmarkGetUrlsUser(b *testing.B) {
 	b.Run("after optimize", func(b *testing.B) {
 		_, _ = db.GetUrlsUser(strconv.Itoa(1))
 	})
+
+	b.StopTimer()
 
 	for _, v := range uids {
 		_ = db.Delete(strings.Split(v, "/")[3])

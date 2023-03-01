@@ -17,9 +17,11 @@ import (
 )
 
 const (
-	maxIdleConns = 100
-	maxOpenConns = 200
-	maxLifetime  = (15 * time.Minute)
+	maxIdleConns           = 100
+	maxOpenConns           = 200
+	maxLifetime            = (15 * time.Minute)
+	batchSize              = 1000
+	skipDefaultTransaction = true
 )
 
 // DB represents a database instance
@@ -40,8 +42,8 @@ func NewDB(conf config.Configurator) *DB {
 // Init initialize a new database instance.
 func (d *DB) Init() error {
 	db, err := gorm.Open(postgres.Open(d.conf.GetDSN()), &gorm.Config{
-		CreateBatchSize:        1000,
-		SkipDefaultTransaction: true,
+		CreateBatchSize:        batchSize,
+		SkipDefaultTransaction: skipDefaultTransaction,
 	})
 	if err != nil {
 		return fmt.Errorf("database connection error: %w", err)
@@ -142,10 +144,18 @@ func (d *DB) Delete(shortURL string) error {
 	return res.Error
 }
 
+// DeleteByLongURL performs removing data from shortens URLs by longURL.
+func (d *DB) DeleteByLongURL(longURL string) error {
+	res := d.db.Where("long_url = ?", longURL).
+		Delete(&models.Urls{})
+
+	return res.Error
+}
+
 // Add performs adding URL to the DB.
 func (d *DB) Add(longURL, userID string) (string, error) {
 	var uri models.Urls
-	res := d.db.Where("long_url = ?", longURL).FirstOrInit(&uri)
+	res := d.db.Where("long_url = ?", longURL).Limit(1).Find(&uri)
 	if res.RowsAffected > 0 {
 		return d.conf.GetBaseURL() + uri.ShortUID, ErrAlreadyExists
 	}
@@ -284,7 +294,7 @@ func (d *DB) GetUrlsUser(userID string) ([]struct {
 		Where("uid = ?", uid).Find(&urls)
 
 	if len(urls) == 0 {
-		return urls, ErrUserUrlsEmpty
+		return nil, ErrUserUrlsEmpty
 	}
 
 	return urls, nil

@@ -124,7 +124,7 @@ func (h *Handlers) GetUsersURL(writer http.ResponseWriter, req *http.Request) {
 	}
 
 	out, err := h.Storage.Store.GetUrlsUser(req.URL.User.Username())
-	if err != nil {
+	if err != nil || out == nil {
 		writer.WriteHeader(http.StatusNoContent)
 
 		return
