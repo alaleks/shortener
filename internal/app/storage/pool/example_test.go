@@ -19,12 +19,12 @@ func Example() {
 	go pool.Run()
 
 	// Add Task
-	pool.AddTask(2, func(data any) error {
+	go pool.AddTask(2, func(data any) error {
 		fmt.Println(data.(int) * 2)
 		return nil
 	})
 
-	pool.AddTask(4, func(data any) error {
+	go pool.AddTask(4, func(data any) error {
 		fmt.Println(data.(int) * 2)
 		return nil
 	})
@@ -35,6 +35,6 @@ func Example() {
 	pool.Stop()
 
 	// Output:
-	// 8
 	// 4
+	// 8
 }
