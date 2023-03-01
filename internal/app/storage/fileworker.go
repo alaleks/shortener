@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// Close perfoms saving data to the file storage and closes its.
 func (ds *DefaultStorage) Close() error {
 	if ds.conf.GetFileStoragePath() == "" {
 		return nil
@@ -20,19 +21,21 @@ func (ds *DefaultStorage) Close() error {
 	}
 
 	if file != nil {
-		defer file.Close()
+		defer func() {
+			_ = file.Close()
+		}()
 	}
 
 	buf := new(bytes.Buffer)
 	encoder := gob.NewEncoder(buf)
 
-	if err := encoder.Encode(ds.urls); err != nil {
+	if err = encoder.Encode(ds.urls); err != nil {
 		return fmt.Errorf("failed encode data for file storage: %w", err)
 	}
 
 	writer := bufio.NewWriter(file)
 
-	if _, err := writer.Write(buf.Bytes()); err != nil {
+	if _, err = writer.Write(buf.Bytes()); err != nil {
 		return fmt.Errorf("failed write data to buffer: %w", err)
 	}
 
@@ -45,6 +48,7 @@ func (ds *DefaultStorage) Close() error {
 	return nil
 }
 
+// Init performs that initializes the file storage.
 func (ds *DefaultStorage) Init() error {
 	if ds.conf.GetFileStoragePath() == "" {
 		return nil
@@ -56,7 +60,9 @@ func (ds *DefaultStorage) Init() error {
 	}
 
 	if file != nil {
-		defer file.Close()
+		defer func() {
+			_ = file.Close()
+		}()
 	}
 
 	decoder := gob.NewDecoder(file)
@@ -67,9 +73,10 @@ func (ds *DefaultStorage) Init() error {
 		return fmt.Errorf("failed decode data: %w", err)
 	}
 
-	return err
+	return nil
 }
 
+// Ping is a stub method for interface implementation Storage.
 func (ds *DefaultStorage) Ping() error {
 	return nil
 }

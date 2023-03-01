@@ -1,17 +1,28 @@
+// Package config contains configuration for application
+// and functions for its settings.
 package config
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
+const (
+	defaultSizeUID = 5
+)
+
+// Configurator interface is used for application settings
+// by combining interfaces Recipient and Tuner interfaces.
 type Configurator interface {
 	Recipient
 	Tuner
 }
 
+// Recipient interface implements methods for getting settings parameters.
 type Recipient interface {
 	GetServAddr() string
 	GetBaseURL() string
@@ -19,22 +30,48 @@ type Recipient interface {
 	GetSecretKey() []byte
 	GetDSN() string
 	GetSizeUID() int
+	EnableTLS() bool
 }
 
+// Tuner interface implements methods for configuring tuning.
 type Tuner interface {
 	DefineOptionsEnv()
 	DefineOptionsFlags([]string)
 }
 
+// AppConfig struct with data for configuring the application.
 type AppConfig struct {
-	serverAddr      string
-	baseURL         string
+	// servAddr is the address for server run.
+	serverAddr string
+	// baseURL is the URL app.
+	baseURL string
+	// fileStoragePath is the path for filestorage.
 	fileStoragePath string
-	dsn             string
-	secretKey       []byte
-	sizeUID         int
+	// dsn is the database connection string.
+	dsn string
+	// cfgFile is the path for configuration file.
+	cfgFile string
+	// secretKey is designed for encryption and decryption of authorization data.
+	secretKey []byte
+	// sizeUID sets the size of the short URL ID.
+	sizeUID int
+	// tls is used to enable TLS.
+	tls bool
 }
 
+// configJSON is the JSON structure for configuration.
+type configJSON struct {
+	ServerAddress   string `json:"server_address"`
+	BaseURL         string `json:"base_url"`
+	FileStoragePath string `json:"file_storage_path"`
+	DSN             string `json:"database_dsn"`
+	EnableHTTPS     bool   `json:"enable_https"`
+}
+
+// The Options structure contains application configuration
+// launch options with both environment variables and flags.
+// If Env and Flag are set to true, the configuration
+// will give priority to the flags.
 type Options struct {
 	Env  bool
 	Flag bool
@@ -45,16 +82,21 @@ type confFlags struct {
 	baseURL         *string
 	fileStoragePath *string
 	dsn             *string
+	sizeUID         *string
+	tls             *string
+	cfgFile         *string
 }
 
-func New(opt Options, sizeUID int) *AppConfig {
+// New returns a pointer of struct that implements the Configurator interface.
+func New(opt Options) *AppConfig {
 	appConf := AppConfig{
 		serverAddr:      "localhost:8080",
 		baseURL:         "http://localhost:8080/",
 		fileStoragePath: "",
 		dsn:             "",
 		secretKey:       []byte("9EE3BF9351DFCFF24CD6DA2C4D963"),
-		sizeUID:         sizeUID,
+		sizeUID:         defaultSizeUID,
+		tls:             false,
 	}
 
 	if opt.Env {
@@ -68,31 +110,50 @@ func New(opt Options, sizeUID int) *AppConfig {
 	return &appConf
 }
 
+// GetServAddr returns host for run server.
 func (a *AppConfig) GetServAddr() string {
 	return a.serverAddr
 }
 
+// GetBaseURL returns the url of the application.
 func (a *AppConfig) GetBaseURL() string {
 	return a.baseURL
 }
 
+// GetFileStoragePath returns path for filestorage.
 func (a *AppConfig) GetFileStoragePath() string {
 	return a.fileStoragePath
 }
 
+// GetSecretKey returns secret key
+// for encryption and decryption of authorization data.
 func (a *AppConfig) GetSecretKey() []byte {
 	return a.secretKey
 }
 
+// GetDSN returns the database connection string.
 func (a *AppConfig) GetDSN() string {
 	return a.dsn
 }
 
+// EnableTLS returns true if TLS is enabled in config.
+func (a *AppConfig) EnableTLS() bool {
+	return a.tls
+}
+
+// GetSizeUID return the size of the short URL ID.
 func (a *AppConfig) GetSizeUID() int {
 	return a.sizeUID
 }
 
+// DefineOptionsEnv implements application configuration using environment variables.
 func (a *AppConfig) DefineOptionsEnv() {
+	if cgfFile, ok := os.LookupEnv("CONFIG"); ok && cgfFile != "" {
+		a.cfgFile = cgfFile
+		// configure application using config file.
+		a.configureFile()
+	}
+
 	if servAddr, ok := os.LookupEnv("SERVER_ADDRESS"); ok && servAddr != "" {
 		a.serverAddr = servAddr
 	}
@@ -111,14 +172,32 @@ func (a *AppConfig) DefineOptionsEnv() {
 		a.dsn = dsn
 	}
 
-	// проверяем корректность опций
+	if sizeUID, ok := os.LookupEnv("SIZE_UID"); ok && sizeUID != "" {
+		i, err := strconv.Atoi(sizeUID)
+		if err == nil && i > 3 {
+			a.sizeUID = i
+		}
+	}
+
+	if _, ok := os.LookupEnv("ENABLE_HTTPS"); ok {
+		a.tls = true
+	}
+
+	// Сheck if the options are correct.
 	a.checkOptions()
 }
 
+// DefineOptionsFlags implements application configuration using flags.
 func (a *AppConfig) DefineOptionsFlags(args []string) {
 	confFlags, err := parseFlags(args)
 	if err != nil {
 		return
+	}
+
+	if *confFlags.cfgFile != "" {
+		a.cfgFile = *confFlags.cfgFile
+		// configure application using config file.
+		a.configureFile()
 	}
 
 	if *confFlags.serverAddr != "" {
@@ -139,34 +218,81 @@ func (a *AppConfig) DefineOptionsFlags(args []string) {
 		a.dsn = *confFlags.dsn
 	}
 
-	// проверяем корректность опций
+	if *confFlags.tls != "" {
+		a.tls = true
+	}
+
+	if *confFlags.sizeUID != "" {
+		i, err := strconv.Atoi(*confFlags.sizeUID)
+		if err == nil && i > 3 {
+			a.sizeUID = i
+		}
+	}
+
+	// Сheck if the options are correct.
 	a.checkOptions()
+}
+
+// configureFile performs file configuration from file configuration
+// in passed in field cfgFile.
+func (a *AppConfig) configureFile() {
+	file, err := os.ReadFile(a.cfgFile)
+	if err != nil {
+		return
+	}
+
+	var cfg configJSON
+
+	err = json.Unmarshal(file, &cfg)
+	if err != nil {
+		return
+	}
+
+	a.baseURL = cfg.BaseURL
+	a.serverAddr = cfg.ServerAddress
+	a.fileStoragePath = cfg.FileStoragePath
+	a.dsn = cfg.DSN
+	a.tls = cfg.EnableHTTPS
 }
 
 func parseFlags(args []string) (*confFlags, error) {
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 
-	var confFlags confFlags
+	var configFlags confFlags
 
-	confFlags.serverAddr = flags.String("a", "", "SERVER_ADDRESS")
-	confFlags.baseURL = flags.String("b", "", "BASE_URL")
-	confFlags.fileStoragePath = flags.String("f", "", "FILE_STORAGE_PATH")
-	confFlags.dsn = flags.String("d", "", "DATABASE_DSN")
+	configFlags.serverAddr = flags.String("a", "", "SERVER_ADDRESS")
+	configFlags.baseURL = flags.String("b", "", "BASE_URL")
+	configFlags.fileStoragePath = flags.String("f", "", "FILE_STORAGE_PATH")
+	configFlags.dsn = flags.String("d", "", "DATABASE_DSN")
+	configFlags.sizeUID = flags.String("q", "", "SIZE_UID")
+	configFlags.tls = flags.String("s", "", "ENABLE_HTTPS")
+	// define configs flags
+	conf1 := flags.String("c", "", "CONFIG")
+	conf2 := flags.String("config", "", "CONFIG")
 
 	err := flags.Parse(args[1:])
 	if err != nil {
 		err = fmt.Errorf("failed parse flags %w", flags.Parse(args[1:]))
 	}
 
-	return &confFlags, err
+	switch {
+	case *conf1 != "":
+		configFlags.cfgFile = conf1
+	case *conf2 != "":
+		configFlags.cfgFile = conf2
+	default:
+		configFlags.cfgFile = conf1
+	}
+
+	return &configFlags, err
 }
 
 func (a *AppConfig) checkOptions() {
 	httpPrefix := "http://"
 
-	// проверка адреса сервера, должен быть указан порт
+	// Check server address, port must be specified.
 	if !strings.Contains(a.serverAddr, ":") {
-		// если порт не указан, то добавляем 8080
+		// If the port is not specified, then add the default value :8080.
 		a.serverAddr += ":8080"
 	}
 

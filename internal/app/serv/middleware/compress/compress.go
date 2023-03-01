@@ -1,3 +1,5 @@
+// Package compress implements gzip compressing
+// the web server response and reading the compressed request.
 package compress
 
 import (
@@ -14,6 +16,7 @@ type writerGzip struct {
 	http.ResponseWriter
 }
 
+// Write implements io.Writer.
 func (w writerGzip) Write(b []byte) (int, error) {
 	n, err := w.Writer.Write(b)
 	if err != nil {
@@ -28,15 +31,17 @@ type readerCloserGzip struct {
 	io.Closer
 }
 
+// Close implements io.Closer.
 func (r readerCloserGzip) Close() error {
-	err := r.Closer.Close()
-	if err != nil {
-		err = fmt.Errorf("failed readerCloserGzip: %w", err)
+	if err := r.Closer.Close(); err != nil {
+		return fmt.Errorf("failed readerCloserGzip: %w", err)
 	}
 
-	return err
+	return nil
 }
 
+// Compression perfoms the server response compress in gzip if the client supports
+// gzip reading and the content type is suitable for efficient compression.
 func Compression(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
 		if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
@@ -45,7 +50,8 @@ func Compression(handler http.Handler) http.Handler {
 			return
 		}
 
-		if !checkBeforeCompression(req.Header.Get("Content-Type")) {
+		// Checking the compress type of its content for efficient compression.
+		if !CheckBeforeCompression(req.Header.Get("Content-Type")) {
 			handler.ServeHTTP(writer, req)
 
 			return
@@ -53,13 +59,18 @@ func Compression(handler http.Handler) http.Handler {
 
 		writer.Header().Set("Content-Encoding", "gzip")
 		gz := gzip.NewWriter(writer)
-		defer gz.Close()
+
+		if gz != nil {
+			defer gz.Close()
+		}
+
 		gzw := writerGzip{Writer: gz, ResponseWriter: writer}
 		handler.ServeHTTP(gzw, req)
 	})
 }
 
-func checkBeforeCompression(contentType string) bool {
+// CheckBeforeCompressionOld (Deprecated) checks the type of the content to be compressed.
+func CheckBeforeCompressionOld(contentType string) bool {
 	correctTypes := [...]string{
 		"text/css",
 		"text/csv",
@@ -83,7 +94,34 @@ func checkBeforeCompression(contentType string) bool {
 	return false
 }
 
-func Unpacking(handler http.Handler) http.Handler {
+// CheckBeforeCompression checks the type of the content to be compressed and
+// returns true if content suitable for compression.
+func CheckBeforeCompression(contentType string) bool {
+	correctTypes := [...]string{
+		"text/css",
+		"text/csv",
+		"text/html",
+		"application/json",
+		"text/javascript",
+		"image/svg+xml",
+		"font/ttf",
+		"text/plain",
+		"font/woff",
+		"font/woff2",
+		"text/xml",
+	}
+
+	for _, correctType := range correctTypes {
+		if contentType == correctType {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Decompression perfoms the request decompress from gzip.
+func Decompression(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
 		switch req.Header.Get("Content-Encoding") {
 		case "gzip":
@@ -95,18 +133,20 @@ func Unpacking(handler http.Handler) http.Handler {
 			}
 			req.Header.Del("Content-Length")
 			reader, err := gzip.NewReader(&buffer)
-
-			if reader != nil {
-				defer reader.Close()
-			}
-
 			if err != nil {
 				handler.ServeHTTP(writer, req)
 
 				return
 			}
 
-			req.Body = readerCloserGzip{Reader: reader, Closer: req.Body}
+			if reader != nil {
+				defer reader.Close()
+			}
+
+			req.Body = readerCloserGzip{
+				Reader: reader,
+				Closer: req.Body,
+			}
 
 			handler.ServeHTTP(writer, req)
 
