@@ -35,6 +35,6 @@ func Example() {
 	pool.Stop()
 
 	// Output:
-	// 4
 	// 8
+	// 4
 }
