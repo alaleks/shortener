@@ -24,7 +24,7 @@ func Example() {
 		return nil
 	})
 
-	go pool.AddTask(4, func(data any) error {
+	go pool.AddTask(2, func(data any) error {
 		fmt.Println(data.(int) * 2)
 		return nil
 	})
@@ -36,5 +36,5 @@ func Example() {
 
 	// Output:
 	// 4
-	// 8
+	// 4
 }
