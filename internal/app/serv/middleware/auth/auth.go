@@ -134,19 +134,15 @@ func (a *Auth) Authorization(handler http.Handler) http.Handler {
 	})
 }
 
-func setCookie(sign string, sslCheck bool) *http.Cookie {
+func setCookie(sign string, ssl bool) *http.Cookie {
 	cookie := http.Cookie{
 		Name:     "Authorization",
 		Value:    sign,
 		Path:     "/",
 		MaxAge:   lifeTimeCookie,
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   ssl,
 		SameSite: http.SameSiteLaxMode,
-	}
-
-	if !sslCheck {
-		cookie.Secure = false
 	}
 
 	return &cookie

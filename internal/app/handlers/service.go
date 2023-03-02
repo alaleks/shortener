@@ -33,10 +33,8 @@ func checkShortUID(shortUID ...string) []string {
 	for _, v := range shortUID {
 		if !strings.Contains(v, "/") && v != "" {
 			correctShortUID = append(correctShortUID, v)
-		} else {
-			if sUID := v[strings.LastIndex(v, "/")+1:]; sUID != "" {
-				correctShortUID = append(correctShortUID, sUID)
-			}
+		} else if sUID := v[strings.LastIndex(v, "/")+1:]; sUID != "" {
+			correctShortUID = append(correctShortUID, sUID)
 		}
 	}
 
