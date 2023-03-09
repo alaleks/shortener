@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/netip"
 
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/alaleks/shortener/internal/app/storage"
@@ -269,4 +270,44 @@ func (h *Handlers) ShortenDeletePool(writer http.ResponseWriter, req *http.Reque
 	})
 
 	writer.WriteHeader(http.StatusAccepted)
+}
+
+// StatsInternal implement getting data about the number of shortened URLs
+// and the number of users in the app.
+// GET /api/internal/stats
+func (h *Handlers) StatsInternal(writer http.ResponseWriter, req *http.Request) {
+	realIP, err := netip.ParseAddr(req.Header.Get("X-Real-IP"))
+	if err != nil {
+		http.Error(writer, ErrAccessTrustedSubnet.Error(), http.StatusForbidden)
+
+		return
+	}
+
+	if !h.trustedSubnets.Contains(realIP) {
+		http.Error(writer, ErrAccessTrustedSubnet.Error(), http.StatusForbidden)
+
+		return
+	}
+
+	stat, err := h.Storage.Store.GetStatsInternal()
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	res, err := json.MarshalIndent(stat, " ", "  ")
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+
+	if _, err := writer.Write(res); err != nil {
+		http.Error(writer, ErrInternalError.Error(), http.StatusBadRequest)
+
+		return
+	}
 }

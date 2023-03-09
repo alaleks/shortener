@@ -25,6 +25,14 @@ type (
 		Usage     uint   `json:"usage"`
 	}
 
+	// StatsInternal represents a data model for getting statistics
+	// about the number of shortened URLs
+	// and the number of users in the app.
+	StatsInternal struct {
+		Urls  int `json:"urls"`
+		Users int `json:"users"`
+	}
+
 	// Storage interface is construct to create an application's storage
 	Storage interface {
 		Producer
@@ -51,6 +59,7 @@ type (
 	// Consumer interface is used gettings data from application's storage.
 	Consumer interface {
 		GetURL(uid string) (string, error)
+		GetStatsInternal() (StatsInternal, error)
 		Stat(uid string) (Statistics, error)
 	}
 

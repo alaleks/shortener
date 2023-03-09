@@ -20,6 +20,7 @@ func Create(handler *handlers.Handlers) http.Handler {
 	mux.HandleFunc("/api/user/urls", handler.GetUsersURL).Methods(http.MethodGet)
 	mux.HandleFunc("/api/shorten/batch", handler.ShortenURLBatch).Methods(http.MethodPost)
 	mux.HandleFunc("/api/user/urls", handler.ShortenDeletePool).Methods(http.MethodDelete)
+	mux.HandleFunc("/api/internal/stats", handler.StatsInternal).Methods(http.MethodGet)
 
 	return mux
 }

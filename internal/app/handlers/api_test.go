@@ -382,3 +382,60 @@ func TestGetUsersURL(t *testing.T) {
 		})
 	}
 }
+
+func TestStatsInternal(t *testing.T) {
+	// устанавливаем переменные окружения
+	t.Setenv("TRUSTED_SUBNET", "172.17.0.0/24")
+
+	// настройки для теста
+	appConf := config.New(config.Options{Env: true, Flag: false})
+	testHandler := handlers.New(appConf, nil)
+	uri := appConf.GetBaseURL() + "/api/internal/stats"
+
+	// данные для теста
+	tests := []struct {
+		name string
+		ip   string
+		code int
+	}{
+		{
+			name: "ip входит в доверенную подсеть",
+			code: 200,
+			ip:   "172.17.0.2",
+		},
+		{
+			name: "ip не входит в доверенную подсеть",
+			code: 403,
+			ip:   "172.17.1.2",
+		},
+		{
+			name: "ip имеет не валидный формат",
+			code: 403,
+			ip:   "wrong",
+		},
+	}
+
+	for _, v := range tests {
+		item := v
+		t.Run(item.name, func(t *testing.T) {
+			t.Parallel()
+
+			// создаем запрос, рекордер, хэндлер, запускаем сервер
+			testRec := httptest.NewRecorder()
+			h := middleware.New(compress.Compression, compress.Decompression).
+				Configure(http.HandlerFunc(testHandler.StatsInternal))
+			req := httptest.NewRequest(http.MethodGet, uri, nil)
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("X-Real-IP", item.ip)
+			h.ServeHTTP(testRec, req)
+			res := testRec.Result()
+			if res != nil {
+				defer res.Body.Close()
+			}
+
+			if item.code != res.StatusCode {
+				t.Errorf("mismatch statistics: should be %d but received %d", item.code, res.StatusCode)
+			}
+		})
+	}
+}

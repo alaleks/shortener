@@ -27,8 +27,9 @@ type Recipient interface {
 	GetServAddr() string
 	GetBaseURL() string
 	GetFileStoragePath() string
-	GetSecretKey() []byte
+	GetTrustedSubnet() string
 	GetDSN() string
+	GetSecretKey() []byte
 	GetSizeUID() int
 	EnableTLS() bool
 }
@@ -51,6 +52,8 @@ type AppConfig struct {
 	dsn string
 	// cfgFile is the path for configuration file.
 	cfgFile string
+	// classless addressing (CIDR)
+	trustedSubnet string
 	// secretKey is designed for encryption and decryption of authorization data.
 	secretKey []byte
 	// sizeUID sets the size of the short URL ID.
@@ -65,6 +68,7 @@ type configJSON struct {
 	BaseURL         string `json:"base_url"`
 	FileStoragePath string `json:"file_storage_path"`
 	DSN             string `json:"database_dsn"`
+	TrustedSubnet   string `json:"trusted_subnet"`
 	EnableHTTPS     bool   `json:"enable_https"`
 }
 
@@ -85,6 +89,7 @@ type confFlags struct {
 	sizeUID         *string
 	tls             *string
 	cfgFile         *string
+	trustedSubnet   *string
 }
 
 // New returns a pointer of struct that implements the Configurator interface.
@@ -146,6 +151,11 @@ func (a *AppConfig) GetSizeUID() int {
 	return a.sizeUID
 }
 
+// GetDSN returns the database connection string.
+func (a *AppConfig) GetTrustedSubnet() string {
+	return a.trustedSubnet
+}
+
 // DefineOptionsEnv implements application configuration using environment variables.
 func (a *AppConfig) DefineOptionsEnv() {
 	if cgfFile, ok := os.LookupEnv("CONFIG"); ok && cgfFile != "" {
@@ -181,6 +191,10 @@ func (a *AppConfig) DefineOptionsEnv() {
 
 	if _, ok := os.LookupEnv("ENABLE_HTTPS"); ok {
 		a.tls = true
+	}
+
+	if trustSubnet, ok := os.LookupEnv("TRUSTED_SUBNET"); ok {
+		a.trustedSubnet = trustSubnet
 	}
 
 	// Сheck if the options are correct.
@@ -222,6 +236,10 @@ func (a *AppConfig) DefineOptionsFlags(args []string) {
 		a.tls = true
 	}
 
+	if *confFlags.trustedSubnet != "" {
+		a.trustedSubnet = *confFlags.trustedSubnet
+	}
+
 	if *confFlags.sizeUID != "" {
 		i, err := strconv.Atoi(*confFlags.sizeUID)
 		if err == nil && i > 3 {
@@ -248,11 +266,13 @@ func (a *AppConfig) configureFile() {
 		return
 	}
 
+	// applying settings from json file
 	a.baseURL = cfg.BaseURL
 	a.serverAddr = cfg.ServerAddress
 	a.fileStoragePath = cfg.FileStoragePath
 	a.dsn = cfg.DSN
 	a.tls = cfg.EnableHTTPS
+	a.trustedSubnet = cfg.TrustedSubnet
 }
 
 func parseFlags(args []string) (*confFlags, error) {
@@ -266,6 +286,7 @@ func parseFlags(args []string) (*confFlags, error) {
 	configFlags.dsn = flags.String("d", "", "DATABASE_DSN")
 	configFlags.sizeUID = flags.String("q", "", "SIZE_UID")
 	configFlags.tls = flags.String("s", "", "ENABLE_HTTPS")
+	configFlags.trustedSubnet = flags.String("t", "", "TRUSTED_SUBNET")
 	// define configs flags
 	conf1 := flags.String("c", "", "CONFIG")
 	conf2 := flags.String("config", "", "CONFIG")

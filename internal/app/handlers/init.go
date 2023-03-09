@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"net/netip"
 
 	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/logger"
@@ -10,7 +11,8 @@ import (
 
 // Handler structure that includes the Storage structure.
 type Handlers struct {
-	Storage *storage.Store
+	Storage        *storage.Store
+	trustedSubnets netip.Prefix
 }
 
 // List of typical errors.
@@ -20,8 +22,9 @@ var (
 	ErrInvalidUID     = errors.New("short url is invalid")
 	ErrInvalidRequest = errors.New(`json is invalid, please check what you send. 
 	Should be: {"url":"https://example.ru"}`)
-	ErrUserDoesNotExist = errors.New("user did not use the service")
-	ErrEmptyBatch       = errors.New("URL batching error, please check the source data")
+	ErrUserDoesNotExist    = errors.New("user did not use the service")
+	ErrEmptyBatch          = errors.New("URL batching error, please check the source data")
+	ErrAccessTrustedSubnet = errors.New("your IP is not included in the trusted subnet")
 )
 
 // InputShorten structure for the ShortenURLAPI method containing a URL field.
@@ -54,6 +57,10 @@ type OutShortenBatch struct {
 func New(conf config.Configurator, logger *logger.AppLogger) *Handlers {
 	handlers := Handlers{
 		Storage: storage.InitStore(conf, logger),
+	}
+
+	if network, err := netip.ParsePrefix(conf.GetTrustedSubnet()); err == nil {
+		handlers.trustedSubnets = network
 	}
 
 	return &handlers

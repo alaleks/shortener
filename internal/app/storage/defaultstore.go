@@ -224,3 +224,16 @@ func (ds *DefaultStorage) DelUrlsOld(userID string, shortsUID ...string) error {
 
 	return nil
 }
+
+// GetStatsInternal returns data about the number of shortened URLs
+// and the number of users in the app.
+func (ds *DefaultStorage) GetStatsInternal() (StatsInternal, error) {
+	ds.mu.RLock()
+	stats := StatsInternal{
+		Urls:  len(ds.urls),
+		Users: len(ds.users),
+	}
+	ds.mu.RUnlock()
+
+	return stats, nil
+}

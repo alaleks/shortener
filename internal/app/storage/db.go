@@ -358,6 +358,30 @@ func (d *DB) DelUrls(userID string, shortsUID ...string) error {
 	return res.Error
 }
 
+// GetStatsInternal returns data about the number of shortened URLs
+// and the number of users in the app.
+func (d *DB) GetStatsInternal() (StatsInternal, error) {
+	var (
+		qtyURLs  int64
+		qtyUsers int64
+		stat     StatsInternal
+	)
+
+	if res := d.db.Model(&models.Urls{}).Count(&qtyURLs); res.Error != nil {
+		return stat, res.Error
+	}
+
+	stat.Urls = int(qtyURLs)
+
+	if res := d.db.Model(&models.Users{}).Count(&qtyUsers); res.Error != nil {
+		return stat, res.Error
+	}
+
+	stat.Users = int(qtyUsers)
+
+	return stat, nil
+}
+
 func writeURL(db *gorm.DB, uri models.Urls) int {
 	res := db.Clauses(clause.OnConflict{DoNothing: true}).Create(&uri)
 
