@@ -1,3 +1,4 @@
+// Package service implements support protobuf for gprc server.
 package proto
 
 import (
