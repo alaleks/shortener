@@ -22,10 +22,11 @@ import (
 )
 
 const (
-	MdAuthName  = "Authorization"
+	mdAuthName  = "Authorization"
 	xrealIPName = "X-Real-IP"
 )
 
+// List of typical errors.
 var (
 	ErrInvalidMetadataAuth = errors.New("this signing is invalid")
 	ErrorEmptyData         = errors.New("request does not contains data")
@@ -227,7 +228,7 @@ func (s *Server) auth(ctx context.Context) (string, error) {
 
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok {
-		if values := md.Get(MdAuthName); len(values) > 0 {
+		if values := md.Get(mdAuthName); len(values) > 0 {
 			mdAuthVal = values[0]
 		}
 	}
@@ -297,7 +298,7 @@ func (s *Server) definitionUser(ctx context.Context) (string, error) {
 
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok {
-		if values := md.Get(MdAuthName); len(values) > 0 {
+		if values := md.Get(mdAuthName); len(values) > 0 {
 			mdAuthVal = values[0]
 		}
 	}
