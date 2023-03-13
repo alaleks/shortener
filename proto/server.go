@@ -43,6 +43,7 @@ type (
 	}
 )
 
+// New creates a new grpc server.
 func New(st *storage.Store, secret []byte, trustedSubnet string) *Server {
 	server := Server{
 		srv:    UnimplementedShortenerServer{},
@@ -79,6 +80,7 @@ func (s *Server) ShortenURL(ctx context.Context, in *ShortenRequest) (*ShortenRe
 	}, nil
 }
 
+// GetStatAPI implements getting statistics on the use of a short URL.
 func (s *Server) GetStat(ctx context.Context, in *StatRequest) (*StatResponse, error) {
 	stat, err := s.store.St.Stat(in.Shortuid)
 	if err != nil {
@@ -179,40 +181,6 @@ func (s *Server) ShortenDelete(ctx context.Context, in *ShortenDeleteRequest) (*
 	return &Empty{}, nil
 }
 
-// auth performs the authorization this grpc server implements.
-func (s *Server) auth(ctx context.Context) (string, error) {
-	var (
-		userID    string
-		mdAuthVal string
-	)
-
-	md, ok := metadata.FromIncomingContext(ctx)
-	if ok {
-		if values := md.Get(MdAuthName); len(values) > 0 {
-			mdAuthVal = values[0]
-		}
-	}
-
-	if len(mdAuthVal) == 0 {
-		uid := s.store.St.Create()
-
-		header := metadata.Pairs("Authorization", s.encryptAuth(uid))
-		grpc.SendHeader(ctx, header)
-
-		return strconv.Itoa(int(uid)), nil
-	}
-
-	uid, err := s.decryptAuth(mdAuthVal)
-	if err != nil {
-		return userID, ErrInvalidMetadataAuth
-	}
-
-	header := metadata.Pairs("Authorization", mdAuthVal)
-	grpc.SendHeader(ctx, header)
-
-	return strconv.Itoa(int(uid)), nil
-}
-
 // StatsInternal implement getting data about the number of shortened URLs
 func (s *Server) StatsInternal(ctx context.Context, in *Empty) (*StatsInternalReponse, error) {
 	var (
@@ -248,6 +216,40 @@ func (s *Server) StatsInternal(ctx context.Context, in *Empty) (*StatsInternalRe
 		Urls:  int64(stat.Urls),
 		Users: int64(stat.Users),
 	}, nil
+}
+
+// auth performs the authorization this grpc server implements.
+func (s *Server) auth(ctx context.Context) (string, error) {
+	var (
+		userID    string
+		mdAuthVal string
+	)
+
+	md, ok := metadata.FromIncomingContext(ctx)
+	if ok {
+		if values := md.Get(MdAuthName); len(values) > 0 {
+			mdAuthVal = values[0]
+		}
+	}
+
+	if len(mdAuthVal) == 0 {
+		uid := s.store.St.Create()
+
+		header := metadata.Pairs("Authorization", s.encryptAuth(uid))
+		grpc.SendHeader(ctx, header)
+
+		return strconv.Itoa(int(uid)), nil
+	}
+
+	uid, err := s.decryptAuth(mdAuthVal)
+	if err != nil {
+		return userID, ErrInvalidMetadataAuth
+	}
+
+	header := metadata.Pairs("Authorization", mdAuthVal)
+	grpc.SendHeader(ctx, header)
+
+	return strconv.Itoa(int(uid)), nil
 }
 
 // decryptAuth perfoms decryption metadata value
