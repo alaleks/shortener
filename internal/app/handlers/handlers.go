@@ -38,7 +38,7 @@ func (h *Handlers) ShortenURL(writer http.ResponseWriter, req *http.Request) {
 		userID = req.URL.User.Username()
 	}
 
-	shortURL, err := h.Storage.Store.Add(longURL, userID)
+	shortURL, err := h.Storage.St.Add(longURL, userID)
 
 	if err != nil {
 		if errors.Is(err, storage.ErrAlreadyExists) {
@@ -71,7 +71,7 @@ func (h *Handlers) ParseShortURL(writer http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	longURL, err := h.Storage.Store.GetURL(uid)
+	longURL, err := h.Storage.St.GetURL(uid)
 	if err != nil {
 		status := http.StatusBadRequest
 
@@ -84,7 +84,7 @@ func (h *Handlers) ParseShortURL(writer http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	h.Storage.Store.Update(uid)
+	h.Storage.St.Update(uid)
 
 	writer.Header().Set("Location", longURL)
 	writer.WriteHeader(http.StatusTemporaryRedirect)
@@ -94,7 +94,7 @@ func (h *Handlers) ParseShortURL(writer http.ResponseWriter, req *http.Request) 
 //
 // GET /ping
 func (h *Handlers) Ping(writer http.ResponseWriter, req *http.Request) {
-	if err := h.Storage.Store.Ping(); err != nil {
+	if err := h.Storage.St.Ping(); err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 
 		return

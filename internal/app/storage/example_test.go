@@ -17,7 +17,7 @@ func Example() {
 	st := storage.InitStore(appConf, logger.NewLogger())
 
 	// Check Ping
-	fmt.Println(st.Store.Ping())
+	fmt.Println(st.St.Ping())
 
 	// Output:
 	// <nil>

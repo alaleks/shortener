@@ -12,8 +12,8 @@ type (
 	// Store represents the application's storage structure and
 	// includes the Storage interface and a pointer to Pool.
 	Store struct {
-		Store Storage
-		Pool  *pool.Pool
+		St   Storage
+		Pool *pool.Pool
 	}
 
 	// Statistics represents a data model for getting statistics
@@ -80,12 +80,12 @@ func InitStore(conf config.Configurator, logger *logger.AppLogger) *Store {
 
 	if len([]rune(conf.GetDSN())) > 1 {
 		storeDB := &Store{
-			Store: NewDB(conf),
-			Pool:  pool,
+			St:   NewDB(conf),
+			Pool: pool,
 		}
 
 		// Initializing the database.
-		err := storeDB.Store.Init()
+		err := storeDB.St.Init()
 
 		// Return the structure only if the error is nil
 		// otherwise use file or memory.
@@ -95,12 +95,12 @@ func InitStore(conf config.Configurator, logger *logger.AppLogger) *Store {
 	}
 
 	storeDefault := &Store{
-		Store: NewDefault(conf),
-		Pool:  pool,
+		St:   NewDefault(conf),
+		Pool: pool,
 	}
 
 	// Initialize file storage.
-	_ = storeDefault.Store.Init()
+	_ = storeDefault.St.Init()
 
 	return storeDefault
 }

@@ -111,7 +111,7 @@ func (a *Auth) Authorization(handler http.Handler) http.Handler {
 		var userID uint
 
 		if authCookie == nil || err != nil {
-			userID = a.store.Store.Create()
+			userID = a.store.St.Create()
 			http.SetCookie(writer, setCookie(a.CreateSigning(userID), req.TLS != nil))
 			req.URL.User = url.User(strconv.Itoa(int(userID)))
 			handler.ServeHTTP(writer, req)
@@ -121,7 +121,7 @@ func (a *Auth) Authorization(handler http.Handler) http.Handler {
 
 		userID, err = a.ReadSigning(authCookie.Value)
 		if err != nil {
-			userID = a.store.Store.Create()
+			userID = a.store.St.Create()
 			http.SetCookie(writer, setCookie(a.CreateSigning(userID), req.TLS != nil))
 			req.URL.User = url.User(strconv.Itoa(int(userID)))
 			handler.ServeHTTP(writer, req)
@@ -136,7 +136,7 @@ func (a *Auth) Authorization(handler http.Handler) http.Handler {
 
 func setCookie(sign string, ssl bool) *http.Cookie {
 	cookie := http.Cookie{
-		Name:     "Authorization",
+		Name:     cookieName,
 		Value:    sign,
 		Path:     "/",
 		MaxAge:   lifeTimeCookie,

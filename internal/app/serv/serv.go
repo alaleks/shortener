@@ -5,11 +5,14 @@ import (
 	"context"
 	"crypto/tls"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	pb "github.com/alaleks/shortener/proto"
 
 	"github.com/alaleks/shortener/internal/app/config"
 	"github.com/alaleks/shortener/internal/app/handlers"
@@ -18,8 +21,10 @@ import (
 	"github.com/alaleks/shortener/internal/app/serv/middleware"
 	"github.com/alaleks/shortener/internal/app/serv/middleware/auth"
 	"github.com/alaleks/shortener/internal/app/serv/middleware/compress"
+	"github.com/alaleks/shortener/internal/app/storage"
 	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/net/http2"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -32,6 +37,7 @@ const (
 // AppServer represents an application server instance.
 type AppServer struct {
 	server   *http.Server
+	grpc     *grpc.Server
 	handlers *handlers.Handlers
 	Logger   *logger.AppLogger
 	conf     config.Configurator
@@ -42,7 +48,8 @@ func New() *AppServer {
 	var (
 		appConf    config.Configurator = config.New(config.Options{Env: true, Flag: true})
 		logger                         = logger.NewLogger()
-		appHandler                     = handlers.New(appConf, logger)
+		st                             = storage.InitStore(appConf, logger)
+		appHandler                     = handlers.New(appConf, logger, st)
 		auth                           = auth.TurnOn(appHandler.Storage, appConf.GetSecretKey())
 		routers                        = router.Create(appHandler)
 	)
@@ -64,10 +71,16 @@ func New() *AppServer {
 		ConnContext:       nil,
 	}
 
+	// register grpc server.
+	grpc := grpc.NewServer()
+	pbSrv := pb.New(st, appConf.GetSecretKey(), appConf.GetTrustedSubnet())
+	pb.RegisterShortenerServer(grpc, pbSrv)
+
 	return &AppServer{
 		server:   server,
 		handlers: appHandler,
 		conf:     appConf,
+		grpc:     grpc,
 		Logger:   logger,
 	}
 }
@@ -75,6 +88,22 @@ func New() *AppServer {
 // Run starts the server.
 func Run(appServer *AppServer) error {
 	go catchSignal(appServer)
+
+	// run grpc server
+	go func() {
+		lis, err := net.Listen("tcp", appServer.conf.GetGRPCPort())
+		if err != nil {
+			appServer.Logger.LZ.Error(err)
+
+			return
+		}
+
+		if err := appServer.grpc.Serve(lis); err != nil {
+			appServer.Logger.LZ.Error(err)
+
+			return
+		}
+	}()
 
 	// turn on tls for https connections
 	if appServer.conf.EnableTLS() {
@@ -127,8 +156,9 @@ func catchSignal(appServer *AppServer) {
 		select {
 		case <-termSignals:
 			appServer.handlers.Storage.Pool.Stop()
+			appServer.grpc.GracefulStop()
 
-			if err := appServer.handlers.Storage.Store.Close(); err != nil {
+			if err := appServer.handlers.Storage.St.Close(); err != nil {
 				appServer.Logger.LZ.Fatal(err)
 			}
 
@@ -136,7 +166,7 @@ func catchSignal(appServer *AppServer) {
 				appServer.Logger.LZ.Fatal(err)
 			}
 		case <-reloadSignals:
-			if err := appServer.handlers.Storage.Store.Close(); err != nil {
+			if err := appServer.handlers.Storage.St.Close(); err != nil {
 				appServer.Logger.LZ.Fatal(err)
 			}
 		}

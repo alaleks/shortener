@@ -40,7 +40,7 @@ func (h *Handlers) ShortenURLAPI(writer http.ResponseWriter, req *http.Request) 
 
 	writer.Header().Set("Content-Type", "application/json")
 
-	shortURL, err := h.Storage.Store.Add(input.URL, userID)
+	shortURL, err := h.Storage.St.Add(input.URL, userID)
 	if err != nil {
 		if errors.Is(err, storage.ErrAlreadyExists) {
 			httpStatus = http.StatusConflict
@@ -88,7 +88,7 @@ func (h *Handlers) GetStatAPI(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	stat, err := h.Storage.Store.Stat(uid)
+	stat, err := h.Storage.St.Stat(uid)
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
@@ -124,7 +124,7 @@ func (h *Handlers) GetUsersURL(writer http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	out, err := h.Storage.Store.GetUrlsUser(req.URL.User.Username())
+	out, err := h.Storage.St.GetUrlsUser(req.URL.User.Username())
 	if err != nil || out == nil {
 		writer.WriteHeader(http.StatusNoContent)
 
@@ -220,7 +220,7 @@ func (h *Handlers) ShortenDelete(writer http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	if err := h.Storage.Store.DelUrls(userID, checkShortUID(shortUIDForDel...)...); err != nil {
+	if err := h.Storage.St.DelUrls(userID, checkShortUID(shortUIDForDel...)...); err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
 		return
@@ -260,7 +260,7 @@ func (h *Handlers) ShortenDeletePool(writer http.ResponseWriter, req *http.Reque
 			return storage.ErrInvalidData
 		}
 
-		err := h.Storage.Store.DelUrls(dataRemoved.userID,
+		err := h.Storage.St.DelUrls(dataRemoved.userID,
 			checkShortUID(dataRemoved.shortUIDForDel...)...)
 		if err != nil {
 			return fmt.Errorf("deletion error: %w", err)
@@ -289,7 +289,7 @@ func (h *Handlers) StatsInternal(writer http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	stat, err := h.Storage.Store.GetStatsInternal()
+	stat, err := h.Storage.St.GetStatsInternal()
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 

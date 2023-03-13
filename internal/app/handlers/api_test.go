@@ -27,7 +27,8 @@ func TestShortenURLAPI(t *testing.T) {
 	// данные для теста
 	appConf := config.New(config.Options{Env: false, Flag: false})
 	logger := logger.NewLogger()
-	testHandler := handlers.New(appConf, logger)
+	st := storage.InitStore(appConf, logger)
+	testHandler := handlers.New(appConf, logger, st)
 
 	tests := []struct {
 		name    string
@@ -79,20 +80,21 @@ func TestGetStatAPI(t *testing.T) {
 	// данные для теста
 	appConf := config.New(config.Options{Env: false, Flag: false})
 	logger := logger.NewLogger()
-	testHandler := handlers.New(appConf, logger)
+	st := storage.InitStore(appConf, logger)
+	testHandler := handlers.New(appConf, logger, st)
 	// генерируем uid
 	longURL1 := "https://github.com/alaleks/shortener"
 	longURL2 := "https://yandex.ru/pogoda/krasnodar"
 	// добавляем длинные ссылки в хранилище
-	shortURL1, _ := testHandler.Storage.Store.Add(longURL1, "")
+	shortURL1, _ := testHandler.Storage.St.Add(longURL1, "")
 	uid1 := strings.SplitAfterN(shortURL1, "/", -1)[3]
 
-	shortURL2, _ := testHandler.Storage.Store.Add(longURL2, "")
+	shortURL2, _ := testHandler.Storage.St.Add(longURL2, "")
 	uid2 := strings.SplitAfterN(shortURL2, "/", -1)[3]
 
 	hostStat := appConf.GetBaseURL() + "api/"
 	// для uid1 изменяем статистику
-	testHandler.Storage.Store.Update(uid1)
+	testHandler.Storage.St.Update(uid1)
 	// создаем роутеры
 	routers := router.Create(testHandler)
 
@@ -150,7 +152,8 @@ func TestSetEnv(t *testing.T) {
 	// настройки для теста
 	appConf := config.New(config.Options{Env: true, Flag: false})
 	logger := logger.NewLogger()
-	testHandler := handlers.New(appConf, logger)
+	st := storage.InitStore(appConf, logger)
+	testHandler := handlers.New(appConf, logger, st)
 
 	// создаем запрос, рекордер, хэндлер, запускаем сервер
 	testRec := httptest.NewRecorder()
@@ -172,7 +175,7 @@ func TestSetEnv(t *testing.T) {
 	_ = json.Unmarshal(resBody, &dataFromRes)
 
 	if len(appConf.GetFileStoragePath()) != 0 {
-		_ = testHandler.Storage.Store.Close()
+		_ = testHandler.Storage.St.Close()
 	}
 
 	if req.URL.String() != "localhost:9090" {
@@ -189,9 +192,9 @@ func TestSetEnv(t *testing.T) {
 
 	// сбрасываем карту и читаем файл
 	testHandler.Storage = storage.InitStore(appConf, logger)
-	_ = testHandler.Storage.Store.Close()
+	_ = testHandler.Storage.St.Close()
 
-	if _, err := testHandler.Storage.Store.GetURL(strings.Split(dataFromRes.Result, "/")[3]); err != nil {
+	if _, err := testHandler.Storage.St.GetURL(strings.Split(dataFromRes.Result, "/")[3]); err != nil {
 		t.Errorf("failed to get data from file storage: %s", dataFromRes.Result)
 	}
 
@@ -212,7 +215,8 @@ func TestSetFlag(t *testing.T) {
 	appConf.DefineOptionsFlags(argsTest)
 
 	logger := logger.NewLogger()
-	testHandler := handlers.New(appConf, logger)
+	st := storage.InitStore(appConf, logger)
+	testHandler := handlers.New(appConf, logger, st)
 
 	// создаем запрос, рекордер, хэндлер, запускаем сервер
 	testRec := httptest.NewRecorder()
@@ -234,7 +238,7 @@ func TestSetFlag(t *testing.T) {
 	_ = json.Unmarshal(resBody, &dataFromRes)
 
 	if len(appConf.GetFileStoragePath()) != 0 {
-		_ = testHandler.Storage.Store.Close()
+		_ = testHandler.Storage.St.Close()
 	}
 
 	if req.URL.String() != "localhost:9093" {
@@ -251,9 +255,9 @@ func TestSetFlag(t *testing.T) {
 
 	// сбрасываеи карту и читаем файл
 	testHandler.Storage = storage.InitStore(appConf, logger)
-	_ = testHandler.Storage.Store.Close()
+	_ = testHandler.Storage.St.Close()
 
-	if _, err := testHandler.Storage.Store.GetURL(strings.Split(dataFromRes.Result, "/")[3]); err != nil {
+	if _, err := testHandler.Storage.St.GetURL(strings.Split(dataFromRes.Result, "/")[3]); err != nil {
 		t.Errorf("failed to get data from file storage: %s", dataFromRes.Result)
 	}
 
@@ -266,7 +270,8 @@ func TestCompress(t *testing.T) {
 	// данные для теста
 	appConf := config.New(config.Options{Env: false, Flag: false})
 	logger := logger.NewLogger()
-	testHandler := handlers.New(appConf, logger)
+	st := storage.InitStore(appConf, logger)
+	testHandler := handlers.New(appConf, logger, st)
 
 	tests := []struct {
 		name            string
@@ -308,7 +313,8 @@ func TestGetUsersURL(t *testing.T) {
 	// данные для теста
 	appConf := config.New(config.Options{Env: false, Flag: false})
 	logger := logger.NewLogger()
-	testHandler := handlers.New(appConf, logger)
+	st := storage.InitStore(appConf, logger)
+	testHandler := handlers.New(appConf, logger, st)
 	auth := auth.TurnOn(testHandler.Storage, appConf.GetSecretKey())
 	tests := []struct {
 		name string
@@ -389,7 +395,8 @@ func TestStatsInternal(t *testing.T) {
 
 	// настройки для теста
 	appConf := config.New(config.Options{Env: true, Flag: false})
-	testHandler := handlers.New(appConf, nil)
+	st := storage.InitStore(appConf, nil)
+	testHandler := handlers.New(appConf, nil, st)
 	uri := appConf.GetBaseURL() + "/api/internal/stats"
 
 	// данные для теста
@@ -409,7 +416,7 @@ func TestStatsInternal(t *testing.T) {
 			ip:   "172.17.1.2",
 		},
 		{
-			name: "ip имеет не валидный формат",
+			name: "ip имеет невалидный формат",
 			code: 403,
 			ip:   "wrong",
 		},

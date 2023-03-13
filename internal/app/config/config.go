@@ -32,6 +32,7 @@ type Recipient interface {
 	GetSecretKey() []byte
 	GetSizeUID() int
 	EnableTLS() bool
+	GetGRPCPort() string
 }
 
 // Tuner interface implements methods for configuring tuning.
@@ -44,6 +45,8 @@ type Tuner interface {
 type AppConfig struct {
 	// servAddr is the address for server run.
 	serverAddr string
+	// grpcPort is the run grpc server port.
+	grpcPort string
 	// baseURL is the URL app.
 	baseURL string
 	// fileStoragePath is the path for filestorage.
@@ -66,6 +69,7 @@ type AppConfig struct {
 type configJSON struct {
 	ServerAddress   string `json:"server_address"`
 	BaseURL         string `json:"base_url"`
+	GrpcServerPort  string `json:"grpc_server_port"`
 	FileStoragePath string `json:"file_storage_path"`
 	DSN             string `json:"database_dsn"`
 	TrustedSubnet   string `json:"trusted_subnet"`
@@ -90,12 +94,14 @@ type confFlags struct {
 	tls             *string
 	cfgFile         *string
 	trustedSubnet   *string
+	grpcPort        *string
 }
 
 // New returns a pointer of struct that implements the Configurator interface.
 func New(opt Options) *AppConfig {
 	appConf := AppConfig{
 		serverAddr:      "localhost:8080",
+		grpcPort:        ":50051",
 		baseURL:         "http://localhost:8080/",
 		fileStoragePath: "",
 		dsn:             "",
@@ -118,6 +124,11 @@ func New(opt Options) *AppConfig {
 // GetServAddr returns host for run server.
 func (a *AppConfig) GetServAddr() string {
 	return a.serverAddr
+}
+
+// GetGRPCPort returns run grpc server port.
+func (a *AppConfig) GetGRPCPort() string {
+	return a.grpcPort
 }
 
 // GetBaseURL returns the url of the application.
@@ -151,7 +162,7 @@ func (a *AppConfig) GetSizeUID() int {
 	return a.sizeUID
 }
 
-// GetDSN returns the database connection string.
+// GetTrustedSubnet returns the trusted subnet.
 func (a *AppConfig) GetTrustedSubnet() string {
 	return a.trustedSubnet
 }
@@ -176,6 +187,10 @@ func (a *AppConfig) DefineOptionsEnv() {
 
 	if fileStoragePath, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok && fileStoragePath != "" {
 		a.fileStoragePath = fileStoragePath
+	}
+
+	if grpcPort, ok := os.LookupEnv("GRPC_PORT"); ok && grpcPort != "" {
+		a.grpcPort = grpcPort
 	}
 
 	if dsn, ok := os.LookupEnv("DATABASE_DSN"); ok && dsn != "" {
@@ -240,6 +255,10 @@ func (a *AppConfig) DefineOptionsFlags(args []string) {
 		a.trustedSubnet = *confFlags.trustedSubnet
 	}
 
+	if *confFlags.grpcPort != "" {
+		a.grpcPort = *confFlags.grpcPort
+	}
+
 	if *confFlags.sizeUID != "" {
 		i, err := strconv.Atoi(*confFlags.sizeUID)
 		if err == nil && i > 3 {
@@ -273,6 +292,7 @@ func (a *AppConfig) configureFile() {
 	a.dsn = cfg.DSN
 	a.tls = cfg.EnableHTTPS
 	a.trustedSubnet = cfg.TrustedSubnet
+	a.grpcPort = cfg.GrpcServerPort
 }
 
 func parseFlags(args []string) (*confFlags, error) {
@@ -287,6 +307,7 @@ func parseFlags(args []string) (*confFlags, error) {
 	configFlags.sizeUID = flags.String("q", "", "SIZE_UID")
 	configFlags.tls = flags.String("s", "", "ENABLE_HTTPS")
 	configFlags.trustedSubnet = flags.String("t", "", "TRUSTED_SUBNET")
+	configFlags.grpcPort = flags.String("g", "", "GRPC_PORT")
 	// define configs flags
 	conf1 := flags.String("c", "", "CONFIG")
 	conf2 := flags.String("config", "", "CONFIG")

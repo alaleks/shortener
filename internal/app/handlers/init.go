@@ -54,9 +54,9 @@ type OutShortenBatch struct {
 }
 
 // New returns a pointer of struct Handlers.
-func New(conf config.Configurator, logger *logger.AppLogger) *Handlers {
+func New(conf config.Configurator, logger *logger.AppLogger, st *storage.Store) *Handlers {
 	handlers := Handlers{
-		Storage: storage.InitStore(conf, logger),
+		Storage: st,
 	}
 
 	if network, err := netip.ParsePrefix(conf.GetTrustedSubnet()); err == nil {

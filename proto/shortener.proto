@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package github.com.alaleks.shortener;
+
+option go_package = "github.com/alaleks/shortener/proto";
+
+// The service definition.
+service Shortener {
+  rpc ShortenURL (ShortenRequest) returns (ShortenResponse) {}
+  rpc GetStat (StatRequest) returns (StatResponse) {}
+  rpc GetUsersURL(Empty) returns (UsersURL) {}
+  rpc ShortenURLBatch(ShortenBatchRequest) returns (ShortenBatchResponse) {}
+  rpc ShortenDelete(ShortenDeleteRequest) returns (Empty) {}
+  rpc StatsInternal(Empty) returns (StatsInternalReponse) {}
+}
+
+// Empty simple is stub parameter.
+message Empty {}
+
+// The request message for ShortenURL.
+message ShortenRequest {
+  string url = 1;
+}
+  
+// The response message for ShortenURL.
+message  ShortenResponse {
+  string error = 1;
+  string result = 2;
+  bool success = 3;
+}
+
+// The request message for GetStat.
+message StatRequest {
+  string shortuid = 1;
+}
+
+// The response message for GetStat.
+message StatResponse {
+  string shorturl = 1;
+  string longurl = 2;
+  string createdAt = 3;
+  uint64 usage = 4;
+}
+
+// The response message for GetUsersURL.
+message UsersURL {
+  repeated UserURL urls = 1;
+}
+
+// The item for UsersURL.
+message UserURL {
+  string short_url = 1;
+  string long_url = 2;
+}
+
+// The request message for ShortenURLBatch.
+message ShortenBatchRequest {
+  repeated ShortenBatchRequestItem urls = 1;
+}
+
+// The item ShortenBatchReques.
+message ShortenBatchRequestItem {
+  string correlation_id = 1;
+  string original_url = 2;
+}
+
+// The response message for ShortenURLBatch.
+message ShortenBatchResponse {
+  repeated ShortenBatchResponseItem urls = 1;
+}
+
+// The item for ShortenBatchResponse.
+message ShortenBatchResponseItem {
+	string correlation_id = 1;
+  string short_url = 2;
+  string error = 3;
+}
+
+// The request message for ShortenDelete. 
+message ShortenDeleteRequest {
+  repeated string urls = 1;
+}
+
+// The response message for StatsInternalReponse.
+message StatsInternalReponse {
+  int64 urls = 1;
+  int64 users = 2;
+}

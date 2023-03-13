@@ -13,7 +13,7 @@ func (h *Handlers) processingURLBatch(userID string, input []InShortenBatch) ([]
 		err := service.IsURL(item.OriginalURL)
 
 		if err == nil {
-			shortURL := h.Storage.Store.AddBatch(item.OriginalURL, userID, item.CorID)
+			shortURL := h.Storage.St.AddBatch(item.OriginalURL, userID, item.CorID)
 			out = append(out, OutShortenBatch{CorID: item.CorID, ShortURL: shortURL})
 		} else {
 			out = append(out, OutShortenBatch{CorID: item.CorID, Err: err.Error()})
