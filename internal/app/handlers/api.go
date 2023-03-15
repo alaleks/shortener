@@ -280,7 +280,7 @@ func (h *Handlers) StatsInternal(writer http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	stat, err := h.Storage.St.GetStatsInternal()
+	stat, err := h.Storage.St.GetInternalStats()
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusBadRequest)
 
