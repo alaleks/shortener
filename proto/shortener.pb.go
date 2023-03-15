@@ -94,12 +94,12 @@ func (m *ShortenRequest) GetUrl() string {
 
 // The response message for ShortenURL.
 type ShortenResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	Error                string   `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
 	Result               string   `protobuf:"bytes,2,opt,name=result,proto3" json:"result,omitempty"`
-	Success              bool     `protobuf:"varint,3,opt,name=success,proto3" json:"success,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
+	Success              bool     `protobuf:"varint,3,opt,name=success,proto3" json:"success,omitempty"`
 }
 
 func (m *ShortenResponse) Reset()         { *m = ShortenResponse{} }
@@ -190,12 +190,12 @@ func (m *StatRequest) GetShortuid() string {
 
 // The response message for GetStat.
 type StatResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	Shorturl             string   `protobuf:"bytes,1,opt,name=shorturl,proto3" json:"shorturl,omitempty"`
 	Longurl              string   `protobuf:"bytes,2,opt,name=longurl,proto3" json:"longurl,omitempty"`
 	CreatedAt            string   `protobuf:"bytes,3,opt,name=createdAt,proto3" json:"createdAt,omitempty"`
-	Usage                uint64   `protobuf:"varint,4,opt,name=usage,proto3" json:"usage,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
+	Usage                uint64   `protobuf:"varint,4,opt,name=usage,proto3" json:"usage,omitempty"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
@@ -566,10 +566,10 @@ func (m *ShortenDeleteRequest) GetUrls() []string {
 
 // The response message for StatsInternalReponse.
 type StatsInternalReponse struct {
-	Urls                 int64    `protobuf:"varint,1,opt,name=urls,proto3" json:"urls,omitempty"`
-	Users                int64    `protobuf:"varint,2,opt,name=users,proto3" json:"users,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
+	Urls                 int64    `protobuf:"varint,1,opt,name=urls,proto3" json:"urls,omitempty"`
+	Users                int64    `protobuf:"varint,2,opt,name=users,proto3" json:"users,omitempty"`
 	XXX_sizecache        int32    `json:"-"`
 }
 

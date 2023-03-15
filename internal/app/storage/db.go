@@ -360,7 +360,7 @@ func (d *DB) DelUrls(userID string, shortsUID ...string) error {
 
 // GetStatsInternal returns data about the number of shortened URLs
 // and the number of users in the app.
-func (d *DB) GetStatsInternal() (InternalStats, error) {
+func (d *DB) GetInternalStats() (InternalStats, error) {
 	var (
 		qtyURLs  int64
 		qtyUsers int64

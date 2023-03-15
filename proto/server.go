@@ -205,7 +205,7 @@ func (s *Server) StatsInternal(ctx context.Context, in *Empty) (*StatsInternalRe
 		return nil, status.Error(codes.Unauthenticated, ErrorAccessDenied.Error())
 	}
 
-	stat, err := s.store.St.GetStatsInternal()
+	stat, err := s.store.St.GetInternalStats()
 	if err != nil {
 		s.log.LZ.Error(err)
 		return nil, status.Error(codes.Internal, err.Error())
