@@ -315,7 +315,7 @@ func TestGetUsersURL(t *testing.T) {
 	logger := logger.NewLogger()
 	st := storage.InitStore(appConf, logger)
 	testHandler := handlers.New(appConf, logger, st)
-	auth := auth.TurnOn(testHandler.Storage, appConf.GetSecretKey())
+	auth := auth.TurnOn(testHandler.Storage.St, appConf.GetSecretKey())
 	tests := []struct {
 		name string
 		url  string

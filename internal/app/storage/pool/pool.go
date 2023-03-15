@@ -22,7 +22,7 @@ type Pool struct {
 // Task represents an instance job for added in pool.
 type Task struct {
 	data   any
-	action func(data any) error
+	action func() error
 }
 
 // Run starts of worker pool.
@@ -34,7 +34,7 @@ func (p *Pool) Run() {
 	p.multiplex(workers...)
 
 	for task := range p.out {
-		err := task.action(task.data)
+		err := task.action()
 		if err != nil {
 			p.logger.LZ.Error(err.Error())
 		}
@@ -95,9 +95,9 @@ func (p *Pool) SetNumWorker(num int) {
 }
 
 // AddTask performs adding a task to the pool.
-func (p *Pool) AddTask(data any, f func(data any) error) {
+func (p *Pool) AddTask(f func() error) {
 	p.tasks <- Task{
-		data:   data,
+		//data:   data,
 		action: f,
 	}
 }

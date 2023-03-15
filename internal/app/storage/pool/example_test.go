@@ -11,6 +11,7 @@ import (
 func Example() {
 	// Initialize the logger
 	logger := logger.NewLogger()
+	data := 2
 
 	// Initialize the pool
 	pool := pool.Init(logger)
@@ -19,13 +20,13 @@ func Example() {
 	go pool.Run()
 
 	// Add Task
-	go pool.AddTask(2, func(data any) error {
-		fmt.Println(data.(int) * 2)
+	go pool.AddTask(func() error {
+		fmt.Println(data * 2)
 		return nil
 	})
 
-	go pool.AddTask(2, func(data any) error {
-		fmt.Println(data.(int) * 2)
+	go pool.AddTask(func() error {
+		fmt.Println(data * 2)
 		return nil
 	})
 

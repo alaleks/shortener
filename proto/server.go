@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/alaleks/shortener/internal/app/logger"
 	"github.com/alaleks/shortener/internal/app/service"
 	"github.com/alaleks/shortener/internal/app/storage"
 	"google.golang.org/grpc"
@@ -28,7 +29,7 @@ const (
 
 // List of typical errors.
 var (
-	ErrInvalidMetadataAuth = errors.New("this signing is invalid")
+	ErrInvalidMetadataAuth = errors.New("invalid authorization token in metadata")
 	ErrorEmptyData         = errors.New("request does not contains data")
 	ErrEmptyBatch          = errors.New("URL batching error, please check the source data")
 	ErrorAccessDenied      = errors.New("access denied")
@@ -39,13 +40,15 @@ type (
 	Server struct {
 		srv            UnsafeShortenerServer
 		store          *storage.Store
+		log            *logger.AppLogger
 		trustedSubnets netip.Prefix
 		secret         []byte
 	}
 )
 
 // New creates a new grpc server.
-func New(st *storage.Store, secret []byte, trustedSubnet string) *Server {
+func New(st *storage.Store, log *logger.AppLogger,
+	secret []byte, trustedSubnet string) *Server {
 	server := Server{
 		srv:    UnimplementedShortenerServer{},
 		store:  st,
@@ -160,18 +163,9 @@ func (s *Server) ShortenDelete(ctx context.Context, in *ShortenDeleteRequest) (*
 		shortUIDForDel: in.Urls,
 	}
 
-	s.store.Pool.AddTask(data, func(data any) error {
-		dataRemoved, ok := data.(struct {
-			userID         string
-			shortUIDForDel []string
-		})
-
-		if !ok {
-			return ErrorEmptyData
-		}
-
-		err := s.store.St.DelUrls(dataRemoved.userID,
-			checkShortUID(dataRemoved.shortUIDForDel...)...)
+	s.store.Pool.AddTask(func() error {
+		err := s.store.St.DelUrls(data.userID,
+			checkShortUID(data.shortUIDForDel...)...)
 		if err != nil {
 			return fmt.Errorf("deletion error: %w", err)
 		}
@@ -196,25 +190,29 @@ func (s *Server) StatsInternal(ctx context.Context, in *Empty) (*StatsInternalRe
 	}
 
 	if len(xrealIP) == 0 {
+		s.log.LZ.Error(ErrorAccessDenied)
 		return nil, status.Error(codes.Unauthenticated, ErrorAccessDenied.Error())
 	}
 
 	realIP, err := netip.ParseAddr(xrealIP)
 	if err != nil {
+		s.log.LZ.Error(ErrorAccessDenied)
 		return nil, status.Error(codes.Unauthenticated, ErrorAccessDenied.Error())
 	}
 
 	if !s.trustedSubnets.Contains(realIP) {
+		s.log.LZ.Error(ErrorAccessDenied)
 		return nil, status.Error(codes.Unauthenticated, ErrorAccessDenied.Error())
 	}
 
 	stat, err := s.store.St.GetStatsInternal()
 	if err != nil {
+		s.log.LZ.Error(err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &StatsInternalReponse{
-		Urls:  int64(stat.Urls),
+		Urls:  int64(stat.UrlsSize),
 		Users: int64(stat.Users),
 	}, nil
 }

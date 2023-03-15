@@ -250,18 +250,9 @@ func (h *Handlers) ShortenDeletePool(writer http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	h.Storage.Pool.AddTask(data, func(data any) error {
-		dataRemoved, ok := data.(struct {
-			userID         string
-			shortUIDForDel []string
-		})
-
-		if !ok {
-			return storage.ErrInvalidData
-		}
-
-		err := h.Storage.St.DelUrls(dataRemoved.userID,
-			checkShortUID(dataRemoved.shortUIDForDel...)...)
+	h.Storage.Pool.AddTask(func() error {
+		err := h.Storage.St.DelUrls(data.userID,
+			checkShortUID(data.shortUIDForDel...)...)
 		if err != nil {
 			return fmt.Errorf("deletion error: %w", err)
 		}

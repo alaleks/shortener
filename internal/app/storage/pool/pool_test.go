@@ -29,7 +29,7 @@ func TestPool(t *testing.T) {
 	wg.Add(count)
 	for i := 0; i < count; i++ {
 		go func(i int) {
-			pool.AddTask(i, func(data any) error {
+			pool.AddTask(func() error {
 				defer wg.Done()
 				test = append(test, i)
 				return nil
@@ -53,7 +53,7 @@ func BenchmarkPool(b *testing.B) {
 	go pool.Run()
 	b.Run("before optimize", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			pool.AddTask(i, func(data any) error {
+			pool.AddTask(func() error {
 				_ = i * i
 				return nil
 			})
@@ -62,7 +62,7 @@ func BenchmarkPool(b *testing.B) {
 	pool.SetNumWorker(10 * runtime.NumCPU())
 	b.Run("after optimize 10 x NumCPU", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			pool.AddTask(i, func(data any) error {
+			pool.AddTask(func() error {
 				_ = i * i
 				return nil
 			})
@@ -71,7 +71,7 @@ func BenchmarkPool(b *testing.B) {
 	pool.SetNumWorker(100 * runtime.NumCPU())
 	b.Run("after optimize 100 x NumCPU", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			pool.AddTask(i, func(data any) error {
+			pool.AddTask(func() error {
 				_ = i * i
 				return nil
 			})
@@ -80,7 +80,7 @@ func BenchmarkPool(b *testing.B) {
 	pool.SetNumWorker(1000 * runtime.NumCPU())
 	b.Run("after optimize 1000 x NumCPU", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			pool.AddTask(i, func(data any) error {
+			pool.AddTask(func() error {
 				_ = i * i
 				return nil
 			})

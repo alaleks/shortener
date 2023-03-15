@@ -229,11 +229,12 @@ func (ds *DefaultStorage) DelUrlsOld(userID string, shortsUID ...string) error {
 // and the number of users in the app.
 func (ds *DefaultStorage) GetStatsInternal() (StatsInternal, error) {
 	ds.mu.RLock()
-	stats := StatsInternal{
-		Urls:  len(ds.urls),
-		Users: len(ds.users),
-	}
+	urlsLen := len(ds.urls)
+	usersLen := len(ds.users)
 	ds.mu.RUnlock()
 
-	return stats, nil
+	return StatsInternal{
+		UrlsSize: urlsLen,
+		Users:    usersLen,
+	}, nil
 }

@@ -14,10 +14,10 @@ func Example() {
 		config.Options{})
 
 	// Init Storage
-	st := storage.InitStore(appConf, logger.NewLogger())
+	store := storage.InitStore(appConf, logger.NewLogger())
 
 	// Check Ping
-	fmt.Println(st.St.Ping())
+	fmt.Println(store.St.Ping())
 
 	// Output:
 	// <nil>

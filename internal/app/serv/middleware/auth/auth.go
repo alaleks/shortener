@@ -25,12 +25,12 @@ const (
 
 // Auth stores storing a link to storage and a secret key as an array of bytes.
 type Auth struct {
-	store     *storage.Store
+	store     storage.Storage
 	secretKey []byte
 }
 
 // TurnOn enables on-site authorization.
-func TurnOn(store *storage.Store, secretKey []byte) Auth {
+func TurnOn(store storage.Storage, secretKey []byte) Auth {
 	return Auth{store: store, secretKey: secretKey}
 }
 
@@ -111,7 +111,7 @@ func (a *Auth) Authorization(handler http.Handler) http.Handler {
 		var userID uint
 
 		if authCookie == nil || err != nil {
-			userID = a.store.St.Create()
+			userID = a.store.Create()
 			http.SetCookie(writer, setCookie(a.CreateSigning(userID), req.TLS != nil))
 			req.URL.User = url.User(strconv.Itoa(int(userID)))
 			handler.ServeHTTP(writer, req)
@@ -121,7 +121,7 @@ func (a *Auth) Authorization(handler http.Handler) http.Handler {
 
 		userID, err = a.ReadSigning(authCookie.Value)
 		if err != nil {
-			userID = a.store.St.Create()
+			userID = a.store.Create()
 			http.SetCookie(writer, setCookie(a.CreateSigning(userID), req.TLS != nil))
 			req.URL.User = url.User(strconv.Itoa(int(userID)))
 			handler.ServeHTTP(writer, req)
@@ -134,14 +134,14 @@ func (a *Auth) Authorization(handler http.Handler) http.Handler {
 	})
 }
 
-func setCookie(sign string, ssl bool) *http.Cookie {
+func setCookie(sign string, needSSLCheck bool) *http.Cookie {
 	cookie := http.Cookie{
 		Name:     cookieName,
 		Value:    sign,
 		Path:     "/",
 		MaxAge:   lifeTimeCookie,
 		HttpOnly: true,
-		Secure:   ssl,
+		Secure:   needSSLCheck,
 		SameSite: http.SameSiteLaxMode,
 	}
 

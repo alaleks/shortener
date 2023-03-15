@@ -40,17 +40,17 @@ type AppServer struct {
 	grpc     *grpc.Server
 	handlers *handlers.Handlers
 	Logger   *logger.AppLogger
-	conf     config.Configurator
+	cfg      config.Configurator
 }
 
 // New creates a new server.
 func New() *AppServer {
 	var (
-		appConf    config.Configurator = config.New(config.Options{Env: true, Flag: true})
+		cfg        config.Configurator = config.New(config.Options{Env: true, Flag: true})
 		logger                         = logger.NewLogger()
-		st                             = storage.InitStore(appConf, logger)
-		appHandler                     = handlers.New(appConf, logger, st)
-		auth                           = auth.TurnOn(appHandler.Storage, appConf.GetSecretKey())
+		st                             = storage.InitStore(cfg, logger)
+		appHandler                     = handlers.New(cfg, logger, st)
+		auth                           = auth.TurnOn(appHandler.Storage.St, cfg.GetSecretKey())
 		routers                        = router.Create(appHandler)
 	)
 
@@ -61,7 +61,7 @@ func New() *AppServer {
 		WriteTimeout:      defaultTimeout,
 		IdleTimeout:       defaultIdleTimeout,
 		ReadHeaderTimeout: defaultReadHeaderTimeout,
-		Addr:              appConf.GetServAddr(),
+		Addr:              cfg.GetServAddr(),
 		ErrorLog:          log.New(logger, "", 0),
 		TLSConfig:         nil,
 		MaxHeaderBytes:    maxHeaderBytes,
@@ -73,13 +73,13 @@ func New() *AppServer {
 
 	// register grpc server.
 	grpc := grpc.NewServer()
-	pbSrv := pb.New(st, appConf.GetSecretKey(), appConf.GetTrustedSubnet())
+	pbSrv := pb.New(st, logger, cfg.GetSecretKey(), cfg.GetTrustedSubnet())
 	pb.RegisterShortenerServer(grpc, pbSrv)
 
 	return &AppServer{
 		server:   server,
 		handlers: appHandler,
-		conf:     appConf,
+		cfg:      cfg,
 		grpc:     grpc,
 		Logger:   logger,
 	}
@@ -91,14 +91,14 @@ func Run(appServer *AppServer) error {
 
 	// run grpc server
 	go func() {
-		lis, err := net.Listen("tcp", appServer.conf.GetGRPCPort())
+		listener, err := net.Listen("tcp", appServer.cfg.GetGRPCPort())
 		if err != nil {
 			appServer.Logger.LZ.Error(err)
 
 			return
 		}
 
-		if err := appServer.grpc.Serve(lis); err != nil {
+		if err := appServer.grpc.Serve(listener); err != nil {
 			appServer.Logger.LZ.Error(err)
 
 			return
@@ -106,7 +106,7 @@ func Run(appServer *AppServer) error {
 	}()
 
 	// turn on tls for https connections
-	if appServer.conf.EnableTLS() {
+	if appServer.cfg.EnableTLS() {
 		appServer.turnOnTLS()
 		return appServer.server.ListenAndServeTLS("", "")
 	}

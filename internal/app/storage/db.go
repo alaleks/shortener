@@ -360,18 +360,18 @@ func (d *DB) DelUrls(userID string, shortsUID ...string) error {
 
 // GetStatsInternal returns data about the number of shortened URLs
 // and the number of users in the app.
-func (d *DB) GetStatsInternal() (StatsInternal, error) {
+func (d *DB) GetStatsInternal() (InternalStats, error) {
 	var (
 		qtyURLs  int64
 		qtyUsers int64
-		stat     StatsInternal
+		stat     InternalStats
 	)
 
 	if res := d.db.Model(&models.Urls{}).Count(&qtyURLs); res.Error != nil {
 		return stat, res.Error
 	}
 
-	stat.Urls = int(qtyURLs)
+	stat.UrlsSize = int(qtyURLs)
 
 	if res := d.db.Model(&models.Users{}).Count(&qtyUsers); res.Error != nil {
 		return stat, res.Error

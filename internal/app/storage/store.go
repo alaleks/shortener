@@ -29,8 +29,8 @@ type (
 	// about the number of shortened URLs
 	// and the number of users in the app.
 	StatsInternal struct {
-		Urls  int `json:"urls"`
-		Users int `json:"users"`
+		UrlsSize int `json:"urls"`
+		Users    int `json:"users"`
 	}
 
 	// Storage interface is construct to create an application's storage
